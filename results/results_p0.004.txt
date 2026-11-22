@@ -1,0 +1,33 @@
+data/p0.004_s11.npz: p=0.004, 4000 pairs; test half = 2000 pairs
+
+BP-80 converged: 61.5% of shots; wrong when converged: 0 of 4923
+correction weight of converged BP: median 45, fraction <= 4: 0.0%
+
+training shots where relay_fast fails but relay succeeds: 25
+
+--- ALL PAIRS ---
+bposd alone                        pair fails  209/4000  LER/cycle 4.46e-03 (95% hi 5.1e-03)  mean   305.4 ms  p50  328.8  p99     910 ms
+relay alone                        pair fails   34/4000  LER/cycle 7.11e-04 (95% hi 9.5e-04)  mean   265.5 ms  p50   87.9  p99    4046 ms
+relay_fast alone                   pair fails   90/4000  LER/cycle 1.89e-03 (95% hi 2.3e-03)  mean    52.7 ms  p50   12.3  p99     728 ms
+lsd alone                          pair fails  417/4000  LER/cycle 9.13e-03 (95% hi 1.0e-02)  mean    41.8 ms  p50   34.5  p99     171 ms
+BP-80 conv-gate -> relay           pair fails   34/4000  LER/cycle 7.11e-04 (95% hi 9.5e-04)  mean   252.8 ms  p50   73.2  p99    4057 ms  escalated 38.5%
+BP-80 conv-gate -> relay_fast      pair fails   89/4000  LER/cycle 1.87e-03 (95% hi 2.3e-03)  mean    76.2 ms  p50   38.6  p99     764 ms  escalated 38.5%
+BP-80 conv-gate -> lsd             pair fails  417/4000  LER/cycle 9.13e-03 (95% hi 1.0e-02)  mean    59.2 ms  p50   55.5  p99     214 ms  escalated 38.5%
+gate + weight<=4 rule -> relay     pair fails   34/4000  LER/cycle 7.11e-04 (95% hi 9.5e-04)  mean   296.2 ms  p50  119.7  p99    4096 ms  escalated 100.0%
+3-tier ML (thr 0.5) heavy 9%       pair fails   46/4000  LER/cycle 9.63e-04 (95% hi 1.2e-03)  mean   168.1 ms  p50   39.9  p99    3756 ms  escalated 38.5%
+3-tier ML (thr 0.2) heavy 33%      pair fails   36/4000  LER/cycle 7.53e-04 (95% hi 1.0e-03)  mean   244.0 ms  p50   66.0  p99    4046 ms  escalated 38.5%
+3-tier ORACLE router               pair fails   28/4000  LER/cycle 5.85e-04 (95% hi 8.0e-04)  mean   121.6 ms  p50   38.6  p99    2665 ms  escalated 38.5%
+
+--- TEST HALF ---
+bposd alone                        pair fails  109/2000  LER/cycle 4.66e-03 (95% hi 5.5e-03)  mean   302.0 ms  p50  327.7  p99     896 ms
+relay alone                        pair fails   19/2000  LER/cycle 7.95e-04 (95% hi 1.2e-03)  mean   266.3 ms  p50   87.9  p99    4007 ms
+relay_fast alone                   pair fails   53/2000  LER/cycle 2.24e-03 (95% hi 2.8e-03)  mean    52.6 ms  p50   12.4  p99     728 ms
+lsd alone                          pair fails  217/2000  LER/cycle 9.53e-03 (95% hi 1.1e-02)  mean    40.8 ms  p50   34.3  p99     158 ms
+BP-80 conv-gate -> relay           pair fails   19/2000  LER/cycle 7.95e-04 (95% hi 1.2e-03)  mean   253.6 ms  p50   73.7  p99    3994 ms  escalated 38.2%
+BP-80 conv-gate -> relay_fast      pair fails   52/2000  LER/cycle 2.19e-03 (95% hi 2.8e-03)  mean    75.9 ms  p50   38.1  p99     763 ms  escalated 38.2%
+BP-80 conv-gate -> lsd             pair fails  217/2000  LER/cycle 9.53e-03 (95% hi 1.1e-02)  mean    58.0 ms  p50   55.0  p99     196 ms  escalated 38.2%
+gate + weight<=4 rule -> relay     pair fails   19/2000  LER/cycle 7.95e-04 (95% hi 1.2e-03)  mean   296.7 ms  p50  120.6  p99    4039 ms  escalated 100.0%
+3-tier ML (thr 0.5) heavy 8%       pair fails   23/2000  LER/cycle 9.63e-04 (95% hi 1.4e-03)  mean   167.0 ms  p50   39.3  p99    3778 ms  escalated 38.2%
+3-tier ML (thr 0.2) heavy 33%      pair fails   20/2000  LER/cycle 8.37e-04 (95% hi 1.2e-03)  mean   243.1 ms  p50   66.0  p99    3989 ms  escalated 38.2%
+3-tier ORACLE router               pair fails   16/2000  LER/cycle 6.69e-04 (95% hi 1.0e-03)  mean   128.2 ms  p50   38.1  p99    3115 ms  escalated 38.2%
+

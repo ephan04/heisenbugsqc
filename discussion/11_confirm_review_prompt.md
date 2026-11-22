@@ -1,0 +1,46 @@
+# Round 11: stage-2 confirmation results (noise-adaptive agreement gate, NO ML). Do not run tools; answer in under 300 words.
+Pre-registered verdicts (fresh seeds, real gate vs kit Relay-BP, random per-shot order):
+
+p = 0.003: 10000 pairs, gate K=5 referee R2
+  failed pairs gate 9 vs Relay-BP 2  (only gate 7, only Relay-BP 0)  ratio upper bound 4.50 -> accuracy FAIL
+  LER/cycle gate 7.50e-05 vs Relay-BP 1.67e-05
+  time ratio mean 0.31 (<= 0.34)  p90 0.16 (<= 0.17)  p99 0.57 (<= 0.68)  -> latency PASS   [mean 24 vs 78 ms]
+  paths: first_leg 96.4%, agreed 2.5%, no_solution 0.7%, disagreed 0.4%
+
+p = 0.004: 6000 pairs, gate K=50 referee R5
+  failed pairs gate 69 vs Relay-BP 61  (only gate 24, only Relay-BP 16)  ratio upper bound 1.41 -> accuracy INCONCLUSIVE
+  LER/cycle gate 9.63e-04 vs Relay-BP 8.51e-04
+  time ratio mean 0.66 (<= 0.70)  p90 0.51 (<= 0.55)  p99 1.16 (<= 1.19)  -> latency FAIL   [mean 206 vs 314 ms]
+  paths: first_leg 86.6%, agreed 11.7%, no_solution 0.9%, disagreed 0.8%
+
+p = 0.0045: 3000 pairs, gate K=50 referee R5
+  failed pairs gate 90 vs Relay-BP 94  (only gate 26, only Relay-BP 30)  ratio upper bound 1.17 -> accuracy PASS
+  LER/cycle gate 2.54e-03 vs Relay-BP 2.65e-03
+  time ratio mean 0.78 (<= 0.82)  p90 0.51 (<= 0.57)  p99 1.15 (<= 1.17)  -> latency FAIL   [mean 468 vs 600 ms]
+  paths: first_leg 76.6%, agreed 18.9%, no_solution 2.8%, disagreed 1.7%
+
+p = 0.005: 3000 pairs, gate K=50 referee R5
+  failed pairs gate 233 vs Relay-BP 234  (only gate 63, only Relay-BP 64)  ratio upper bound 1.12 -> accuracy PASS
+  LER/cycle gate 6.71e-03 vs Relay-BP 6.74e-03
+  time ratio mean 0.87 (<= 0.90)  p90 1.16 (<= 1.16)  p99 1.14 (<= 1.22)  -> latency FAIL   [mean 1097 vs 1261 ms]
+  paths: first_leg 63.8%, agreed 25.5%, no_solution 7.0%, disagreed 3.7%
+
+p = 0.0055 (exploratory): 1000 pairs, gate K=5 referee R2
+  failed pairs gate 171 vs Relay-BP 181  (only gate 42, only Relay-BP 52)  ratio upper bound 1.08 -> accuracy PASS
+  LER/cycle gate 1.55e-02 vs Relay-BP 1.65e-02
+  time ratio mean 0.67 (<= 0.70)  p90 0.94 (<= 0.97)  p99 0.84 (<= 1.01)  -> latency FAIL   [mean 1539 vs 2292 ms]
+  paths: first_leg 48.7%, agreed 9.2%, no_solution 34.7%, disagreed 7.3%
+
+p = 0.006 (exploratory): 800 pairs, gate K=5 referee R1
+  failed pairs gate 281 vs Relay-BP 259  (only gate 61, only Relay-BP 39)  ratio upper bound 1.18 -> accuracy PASS
+  LER/cycle gate 3.54e-02 vs Relay-BP 3.21e-02
+  time ratio mean 0.60 (<= 0.63)  p90 0.69 (<= 0.75)  p99 1.01 (<= 1.02)  -> latency FAIL   [mean 2170 vs 3609 ms]
+  paths: first_leg 37.3%, agreed 8.2%, no_solution 48.1%, disagreed 6.4%
+
+Failures per basis-decode by gate path (g-only = only the gate failed, r-only = only Relay-BP failed):
+0.003 | first_leg g1 r0 both1; agreed g0 r0 both1; no_solution g6 r0; disagreed 0
+0.004 | first_leg g3 r0 both3; agreed g6 r3 both7; no_solution g9 r9 both26; disagreed g7 r4 both9
+0.005 | first_leg g1 r1; agreed g10 r13; no_solution g42 r30 both143; disagreed g16 r21
+0.006 | no_solution g73 r49 both228 (R1 referee)
+Note: even with the same R5 referee, discordances occur because Relay-BP's RNG state carries over between decodes.
+Questions: (1) Is 0.003 FAIL explained by the R2 referee (6/7 gate-only failures on the no_solution path, where K=5 sends more shots to R2)? Discovery's "R2 better at 0.003" was 10 vs 12, i.e. noise. (2) What is the honest headline for a hackathon presentation? (3) What is the single best next experiment?

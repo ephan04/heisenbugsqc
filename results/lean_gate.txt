@@ -1,0 +1,5 @@
+data/agree_p0.003_s201.npz: first-leg mismatches 0 | mean ratio vs Relay-BP: primary 0.48 -> lean 0.36 (95% upper 0.41) | p99 ratio primary 0.49 -> lean 0.48 | second run skipped on 97% of shots
+data/agree_p0.004_s101.npz: first-leg mismatches 0 | mean ratio vs Relay-BP: primary 0.71 -> lean 0.63 (95% upper 0.68) | p99 ratio primary 1.18 -> lean 1.08 | second run skipped on 87% of shots
+data/agree_p0.004_s401.npz: first-leg mismatches 0 | mean ratio vs Relay-BP: primary 0.70 -> lean 0.63 (95% upper 0.68) | p99 ratio primary 1.23 -> lean 1.17 | second run skipped on 87% of shots
+data/agree_p0.005_s301.npz: first-leg mismatches 0 | mean ratio vs Relay-BP: primary 0.96 -> lean 0.88 (95% upper 0.90) | p99 ratio primary 1.13 -> lean 1.01 | second run skipped on 71% of shots
+data/agree_timing_p0.004_s501.npz: first-leg mismatches 0 | mean ratio vs Relay-BP: primary 0.79 -> lean 0.72 (95% upper 0.83) | p99 ratio primary 1.30 -> lean 1.16 | second run skipped on 85% of shots

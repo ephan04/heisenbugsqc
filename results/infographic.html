@@ -1,0 +1,346 @@
+<title>The Agreement Gate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one tall column read top to bottom like a lab poster: problem -> idea -> pipeline -> results -> lessons.
+   The detector grid (13 rounds x 72 X checks) is the recurring motif. */
+:root {
+  --bg: #f3f6f7;
+  --panel: #ffffff;
+  --ink: #12202b;
+  --ink-2: #4a5a66;
+  --rule: #d5dee3;
+  --baseline: #4b5bd6;      /* Relay-BP */
+  --gate: #0b8f80;          /* agreement gate / accept */
+  --escalate: #c27a00;      /* escalation */
+  --fast: #d4542a;          /* fast decoder alone */
+  --cell: #e2e9ed;
+  --cell-on: #12202b;
+  --tint-gate: #e1f3f0;
+  --tint-esc: #fbf0dc;
+  --f-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f171d; --panel: #16212a; --ink: #e6eef2; --ink-2: #9fb1bc; --rule: #2a3843;
+    --baseline: #8592ff; --gate: #2cc2ae; --escalate: #f0a429; --fast: #ff7a50;
+    --cell: #22313b; --cell-on: #e6eef2; --tint-gate: #123430; --tint-esc: #3a2c10;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f171d; --panel: #16212a; --ink: #e6eef2; --ink-2: #9fb1bc; --rule: #2a3843;
+  --baseline: #8592ff; --gate: #2cc2ae; --escalate: #f0a429; --fast: #ff7a50;
+  --cell: #22313b; --cell-on: #e6eef2; --tint-gate: #123430; --tint-esc: #3a2c10;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.55; }
+.page { max-width: 1040px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 56px; display: grid; gap: 44px; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: clamp(2.4rem, 6vw, 4rem); font-weight: 800; line-height: 1; }
+h2 { font-size: clamp(1.4rem, 3vw, 1.85rem); font-weight: 700; line-height: 1.15; }
+h3 { font-size: 1.05rem; font-weight: 700; }
+p { margin: 0; max-width: 65ch; }
+.eyebrow { font-family: var(--f-mono); font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2); }
+.mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.muted { color: var(--ink-2); }
+section { display: grid; gap: 18px; }
+
+/* Hero */
+.hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 32px; align-items: end; }
+.hero .lede { font-size: 1.12rem; margin-top: 14px; }
+.hero .claim { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 10px; }
+.pill { font-family: var(--f-mono); font-size: 0.8rem; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--rule); background: var(--panel); }
+.pill b { font-weight: 500; }
+.pill.ok b { color: var(--gate); }
+.pill.no b { color: var(--escalate); }
+.shot { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; display: grid; gap: 10px; min-width: 0; }
+.grid-wrap { overflow-x: auto; }
+canvas#det { display: block; width: 100%; max-width: 100%; height: auto; image-rendering: pixelated; }
+.shot .cap { font-size: 0.8rem; color: var(--ink-2); }
+
+/* Three-step story */
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.step { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 18px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.step .big { font-family: var(--f-display); font-size: 2rem; font-weight: 800; line-height: 1; }
+.step .big small { font-size: 0.95rem; font-weight: 500; color: var(--ink-2); }
+
+/* Pipeline */
+.flow { display: grid; grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr) 40px minmax(0, 1fr); align-items: stretch; gap: 0; }
+.node { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.node h3 { display: flex; gap: 8px; align-items: baseline; }
+.node .tag { font-family: var(--f-mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); font-weight: 400; }
+.arrow { display: grid; place-items: center; color: var(--ink-2); font-size: 1.4rem; }
+.out { display: grid; gap: 8px; }
+.out div { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 10px; align-items: baseline; padding: 8px 10px; border-radius: 6px; font-size: 0.88rem; }
+.out .acc { background: var(--tint-gate); }
+.out .esc { background: var(--tint-esc); }
+.out .pct { font-family: var(--f-mono); font-weight: 500; text-align: right; font-variant-numeric: tabular-nums; }
+.out .acc .pct { color: var(--gate); }
+.out .esc .pct { color: var(--escalate); }
+.final { border-color: var(--escalate); }
+.bar { display: flex; height: 14px; border-radius: 4px; overflow: hidden; gap: 2px; }
+.bar span { display: block; height: 100%; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 0.8rem; color: var(--ink-2); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.analogy { border-left: 3px solid var(--gate); padding: 4px 0 4px 14px; font-size: 0.95rem; }
+
+/* Results chart */
+.chart { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 18px; display: grid; gap: 14px; }
+.row { display: grid; grid-template-columns: 150px minmax(0, 1fr) 132px; gap: 14px; align-items: center; }
+.row .lab { font-size: 0.85rem; }
+.row .lab b { font-family: var(--f-mono); font-weight: 500; }
+.track { position: relative; height: 34px; }
+.track .ax { position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: var(--rule); }
+.track .ref { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px dashed var(--baseline); }
+.dot { position: absolute; top: 50%; width: 14px; height: 14px; transform: translate(-50%, -50%); border-radius: 50%; border: 2px solid var(--panel); }
+.dot.primary { background: var(--gate); }
+.dot.lean { background: var(--panel); border: 2.5px solid var(--gate); }
+.dot.tail { width: 12px; height: 12px; border-radius: 2px; background: var(--escalate); transform: translate(-50%, -50%) rotate(45deg); }
+.link { position: absolute; top: 50%; height: 2px; background: var(--gate); transform: translateY(-50%); }
+.dot[data-tip]:hover::after, .dot[data-tip]:focus::after {
+  content: attr(data-tip); position: absolute; bottom: 150%; left: 50%; transform: translateX(-50%);
+  background: var(--ink); color: var(--bg); font-family: var(--f-mono); font-size: 0.72rem; padding: 4px 8px; border-radius: 4px; white-space: nowrap; z-index: 2;
+}
+.dot.tail[data-tip]:hover::after { transform: translateX(-50%) rotate(-45deg); }
+.dot:focus { outline: 2px solid var(--ink); outline-offset: 2px; }
+.fails { font-family: var(--f-mono); font-size: 0.82rem; text-align: right; font-variant-numeric: tabular-nums; }
+.fails .v { font-weight: 500; }
+.scale { display: grid; grid-template-columns: 150px minmax(0, 1fr) 132px; gap: 14px; }
+.scale .ticks { position: relative; height: 18px; font-family: var(--f-mono); font-size: 0.72rem; color: var(--ink-2); }
+.scale .ticks span { position: absolute; transform: translateX(-50%); }
+.chart .head { display: grid; grid-template-columns: 150px minmax(0, 1fr) 132px; gap: 14px; font-size: 0.75rem; color: var(--ink-2); }
+.chart .head span:last-child { text-align: right; }
+.verdict { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.v-card { border-radius: 10px; padding: 16px; display: grid; gap: 6px; align-content: start; border: 1px solid var(--rule); background: var(--panel); min-width: 0; }
+.v-card .k { font-family: var(--f-mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; }
+.v-card.good .k { color: var(--gate); }
+.v-card.bad .k { color: var(--escalate); }
+
+/* Lessons + method */
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.list li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; font-size: 0.92rem; }
+.list li::before { content: ""; width: 8px; height: 8px; margin-top: 8px; border-radius: 2px; background: var(--ink-2); }
+.list.good li::before { background: var(--gate); }
+.list.bad li::before { background: var(--escalate); }
+.method { display: flex; flex-wrap: wrap; gap: 10px; }
+.foot { font-size: 0.8rem; color: var(--ink-2); border-top: 1px solid var(--rule); padding-top: 16px; display: grid; gap: 6px; }
+
+@media (max-width: 820px) {
+  .hero, .two { grid-template-columns: minmax(0, 1fr); }
+  .steps, .verdict { grid-template-columns: minmax(0, 1fr); }
+  .flow { grid-template-columns: minmax(0, 1fr); }
+  .arrow { transform: rotate(90deg); height: 32px; }
+  .row, .scale, .chart .head { grid-template-columns: 96px minmax(0, 1fr) 86px; gap: 8px; }
+  .fails { font-size: 0.74rem; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dot { transition: transform 0.15s ease; }
+}
+</style>
+
+<main class="page">
+
+  <header class="hero">
+    <div>
+      <div class="eyebrow">MidQWest 2026 · Infleqtion Challenge 1 · Gross code [[144,12,12]]</div>
+      <h1 style="margin-top:12px">The Agreement Gate</h1>
+      <p class="lede">A cheaper way to decode a quantum memory: ask two quick decoders. If they agree, trust them. If they don't, call the expensive one.</p>
+      <div class="claim">
+        <span class="pill ok">accuracy <b>matches Relay-BP</b></span>
+        <span class="pill ok">mean time <b>1.3–2.8× faster</b> at p ≤ 0.004</span>
+        <span class="pill no">p = 0.005 <b>no speed-up</b></span>
+        <span class="pill no">slowest 1% <b>not fixed</b></span>
+      </div>
+    </div>
+    <figure class="shot" style="margin:0">
+      <div class="eyebrow">What the decoder sees: one shot</div>
+      <div class="grid-wrap"><canvas id="det" width="720" height="130" role="img" aria-label="A grid of 13 rounds by 72 checks, about 121 of the 936 alarm bits lit"></canvas></div>
+      <figcaption class="cap"><span class="mono">13 rounds × 72 checks = 936</span> alarm bits. At noise p = 0.004 about <span class="mono">121</span> light up. The decoder must work out which of <span class="mono">8,784</span> possible faults caused them.</figcaption>
+    </figure>
+  </header>
+
+  <section aria-labelledby="why">
+    <div class="eyebrow">The problem</div>
+    <h2 id="why">Accurate decoders are slow on the hard cases</h2>
+    <div class="steps">
+      <div class="step">
+        <h3>Errors leave clues</h3>
+        <p class="muted">144 data qubits store 12 protected qubits. 144 helper qubits keep measuring parity checks. A check that changes between rounds is an alarm.</p>
+      </div>
+      <div class="step">
+        <h3>The decoder plays detective</h3>
+        <p class="muted">It picks the most likely set of faults that explains the alarms. A wrong guess corrupts the stored information.</p>
+      </div>
+      <div class="step">
+        <div class="big mono">0.29 s <small>mean</small></div>
+        <div class="big mono" style="font-size:1.4rem">4.9 s <small>slowest 1%</small></div>
+        <p class="muted">Relay-BP, the strongest baseline, per X+Z pair at p = 0.004. Most of the time goes on a few hard shots.</p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="how">
+    <div class="eyebrow">The idea</div>
+    <h2 id="how">Two cheap opinions, one expensive referee</h2>
+    <div class="flow">
+      <div class="node">
+        <h3>Fast Relay-BP, seed 0 <span class="tag">~13 ms</span></h3>
+        <p class="muted" style="font-size:0.88rem">Relay-BP with a small budget: stop at the first solution, at most 50 restarts.</p>
+        <div class="out">
+          <div class="acc"><span class="pct">86%</span><span>Solved in the opening 80 iterations. That phase has no randomness, so a second run would repeat it. Accept.</span></div>
+          <div class="esc"><span class="pct">1%</span><span>No solution found. Escalate.</span></div>
+        </div>
+      </div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="node">
+        <h3>Fast Relay-BP, seed 1 <span class="tag">hard shots only</span></h3>
+        <p class="muted" style="font-size:0.88rem">Same decoder, different random restarts, so it takes a different route through the search.</p>
+        <div class="out">
+          <div class="acc"><span class="pct">12%</span><span>Both runs reach the same logical answer. Accept.</span></div>
+          <div class="esc"><span class="pct">1%</span><span>The runs disagree. The shot is ambiguous. Escalate.</span></div>
+        </div>
+      </div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="node final">
+        <h3>Full Relay-BP <span class="tag">~2% of shots</span></h3>
+        <p class="muted" style="font-size:0.88rem">The kit's baseline at full settings: up to 300 restarts, keeps the best of 5 solutions. Slow, but the most careful.</p>
+        <div class="bar" role="img" aria-label="Share of shots: 86% accepted in first leg, 12% accepted on agreement, 2% escalated">
+          <span style="width:86%;background:var(--gate)"></span>
+          <span style="width:12%;background:var(--gate);opacity:.55"></span>
+          <span style="width:2%;background:var(--escalate)"></span>
+        </div>
+        <div class="legend">
+          <span><i style="background:var(--gate)"></i>accepted, opening phase</span>
+          <span><i style="background:var(--gate);opacity:.55"></i>accepted, agreement</span>
+          <span><i style="background:var(--escalate)"></i>escalated</span>
+        </div>
+      </div>
+    </div>
+    <p class="analogy">Think of two detectives working the same case separately. If they name the same suspect, you close the case. If they don't, you call in the senior investigator. Shares shown are for noise p = 0.004 (6,000 pairs).</p>
+  </section>
+
+  <section aria-labelledby="res">
+    <div class="eyebrow">Results · 17,000 fresh X+Z pairs</div>
+    <h2 id="res">Same accuracy, less time, except at the highest noise</h2>
+    <div class="chart" role="figure" aria-labelledby="res">
+      <div class="legend">
+        <span><i style="background:var(--gate);border-radius:50%"></i>mean time, agreement gate</span>
+        <span><i style="background:var(--panel);border:2px solid var(--gate);border-radius:50%"></i>mean time, lean version (skips the 2nd run when it can't help)</span>
+        <span><i style="background:var(--escalate)"></i>slowest 1% (p99)</span>
+        <span><i style="background:none;border-left:2px dashed var(--baseline);border-radius:0;width:2px"></i>Relay-BP = 1.0</span>
+      </div>
+      <div class="head"><span>noise · shots</span><span>time relative to Relay-BP (lower is faster)</span><span>failed pairs<br>gate / Relay-BP</span></div>
+      <div id="rows" style="display:grid;gap:6px"></div>
+      <div class="scale"><span></span><div class="ticks" id="ticks"></div><span></span></div>
+    </div>
+    <div class="verdict">
+      <div class="v-card good"><span class="k">Accuracy</span><h3>Matches Relay-BP</h3><p class="muted" style="font-size:0.88rem">317 vs 327 failed pairs overall. At p = 0.005 slightly better (14 pairs only the gate got right, 2 only Relay-BP got right).</p></div>
+      <div class="v-card good"><span class="k">Average speed</span><h3>Faster at p ≤ 0.004</h3><p class="muted" style="font-size:0.88rem">0.48× at p = 0.003, 0.70× at p = 0.004. Controlled single-core timing at p = 0.004 gives 0.79×, or 0.72× for the lean version.</p></div>
+      <div class="v-card bad"><span class="k">Limits</span><h3>High noise and slow tail</h3><p class="muted" style="font-size:0.88rem">At p = 0.005, 11% of shots escalate and the saving disappears. The slowest 1% get 13–23% slower at p ≥ 0.004.</p></div>
+    </div>
+  </section>
+
+  <section class="two" aria-label="What we learned and how we tested">
+    <div class="step">
+      <div class="eyebrow">What we learned on the way</div>
+      <ul class="list">
+        <li><span>When plain belief propagation (BP) converges, it was right 4,923 times out of 4,923.</span></li>
+        <li><span>Skipping easy shots barely helps: the time is spent on the hard 38%.</span></li>
+        <li><span>A model reading one decoder's confidence could not tell when a valid answer was the wrong one.</span></li>
+        <li><span>A second, independently seeded run does tell: disagreement flags ambiguous shots.</span></li>
+        <li><span>The lean version's times are built from measured per-decoder timings. It still needs its own end-to-end run.</span></li>
+      </ul>
+    </div>
+    <div class="step">
+      <div class="eyebrow">How we tested it</div>
+      <ul class="list good">
+        <li><span>Pass/fail rules written down before the results were read.</span></li>
+        <li><span>New simulation seeds; every decoder run on exactly the same shots.</span></li>
+        <li><span>Noise p = 0.003 (8,000 pairs), 0.004 (2 × 3,000), 0.005 (3,000).</span></li>
+        <li><span>Timing rechecked on one core with decoders in random order.</span></li>
+        <li><span>Reviewed by three AI models (Claude, GPT, Gemini) in five rounds.</span></li>
+      </ul>
+      <div class="eyebrow" style="margin-top:8px">Next</div>
+      <ul class="list bad">
+        <li><span>Build the lean gate as a real decoder and time it end to end.</span></li>
+        <li><span>Run the opening 80 iterations once and share them between both seeds.</span></li>
+        <li><span>Fix the slow tail: cap the referee's budget or start it in parallel.</span></li>
+        <li><span>Add a learned step that sends obviously hard shots straight to the referee.</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <span>Logical error rate per cycle = 1 − (1 − P)<sup>1/12</sup>, where P is the fraction of failed X+Z pairs. Times are per X+Z pair. Fast Relay-BP: stop_nconv = 1, num_sets = 50. Full Relay-BP: kit settings (stop_nconv = 5, 300 sets).</span>
+    <span>Code and data: <span class="mono">experiments/agree.py</span>, <span class="mono">agree_report.py</span>, <span class="mono">lean_gate.py</span> · results in <span class="mono">results/agree_report.txt</span>.</span>
+  </footer>
+</main>
+
+<script>
+(() => {
+  // Detector grid: 13 rounds x 72 X checks; ~121 lit, clustered like real error chains (illustrative, seeded).
+  const cv = document.getElementById("det");
+  const ctx = cv.getContext("2d");
+  const rows = 13, cols = 72, cw = cv.width / cols, ch = cv.height / rows;
+  let s = 101;
+  const rand = () => (s = (s * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const lit = new Set();
+  while (lit.size < 121) {
+    const r = Math.floor(rand() * rows), c = Math.floor(rand() * cols);
+    lit.add(r * cols + c);
+    if (rand() < 0.55) lit.add(Math.min(rows - 1, r + (rand() < 0.5 ? 0 : 1)) * cols + (c + 1) % cols);
+  }
+  const css = getComputedStyle(document.documentElement);
+  const draw = () => {
+    const off = css.getPropertyValue("--cell").trim(), on = css.getPropertyValue("--cell-on").trim();
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      ctx.fillStyle = lit.has(r * cols + c) ? on : off;
+      ctx.fillRect(c * cw + 1, r * ch + 1, cw - 2, ch - 2);
+    }
+  };
+  draw();
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => requestAnimationFrame(draw));
+  new MutationObserver(() => requestAnimationFrame(draw)).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  // Results: ratios to Relay-BP on identical shots (results/agree_report.txt, results/lean_gate.txt).
+  const data = [
+    { lab: "p = 0.003", sub: "8,000 pairs", mean: 0.48, lean: 0.36, p99: 0.49, g: 9, r: 10 },
+    { lab: "p = 0.004", sub: "3,000 · seed 101", mean: 0.71, lean: 0.63, p99: 1.18, g: 35, r: 30 },
+    { lab: "p = 0.004", sub: "3,000 · seed 401", mean: 0.70, lean: 0.63, p99: 1.23, g: 26, r: 28 },
+    { lab: "p = 0.004", sub: "400 · 1 core, timing", mean: 0.79, lean: 0.72, p99: 1.30, g: 2, r: 2 },
+    { lab: "p = 0.005", sub: "3,000 pairs", mean: 0.96, lean: 0.88, p99: 1.13, g: 247, r: 259 },
+  ];
+  const lo = 0.2, hi = 1.4, x = v => ((v - lo) / (hi - lo) * 100).toFixed(2) + "%";
+  const rowsEl = document.getElementById("rows");
+  for (const d of data) {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = `
+      <div class="lab"><b>${d.lab}</b><br><span class="muted" style="font-size:.78rem">${d.sub}</span></div>
+      <div class="track">
+        <div class="ax"></div>
+        <div class="ref" style="left:${x(1)}"></div>
+        <div class="link" style="left:${x(d.lean)};width:calc(${x(d.mean)} - ${x(d.lean)})"></div>
+        <div class="dot lean" tabindex="0" style="left:${x(d.lean)}" data-tip="lean: ${d.lean.toFixed(2)}× Relay-BP"></div>
+        <div class="dot primary" tabindex="0" style="left:${x(d.mean)}" data-tip="gate: ${d.mean.toFixed(2)}× Relay-BP"></div>
+        <div class="dot tail" tabindex="0" style="left:${x(d.p99)}" data-tip="slowest 1%: ${d.p99.toFixed(2)}×"></div>
+      </div>
+      <div class="fails"><span class="v">${d.g.toLocaleString()}</span> / ${d.r.toLocaleString()}</div>`;
+    rowsEl.appendChild(row);
+  }
+  const ticks = document.getElementById("ticks");
+  for (const t of [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4]) {
+    const sp = document.createElement("span");
+    sp.style.left = x(t);
+    sp.textContent = t.toFixed(1) + "×";
+    ticks.appendChild(sp);
+  }
+})();
+</script>

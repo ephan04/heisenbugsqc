@@ -1,0 +1,6 @@
+
+p = 0.003: 10000 pairs, gate K=50 referee R5
+  failed pairs gate 10 vs Relay-BP 7  (only gate 6, only Relay-BP 3)  ratio upper bound 2.82 -> accuracy FAIL
+  LER/cycle gate 8.34e-05 vs Relay-BP 5.84e-05
+  time ratio mean 0.35 (<= 0.39)  p90 0.15 (<= 0.16)  p99 0.52 (<= 0.63)  -> latency PASS   [mean 28 vs 81 ms]
+  paths: first_leg 96.5%, agreed 3.3%, no_solution 0.1%, disagreed 0.1%

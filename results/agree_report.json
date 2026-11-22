@@ -1,0 +1,179 @@
+[
+ {
+  "file": "data/agree_timing_p0.004_s501.npz",
+  "p": 0.004,
+  "seed": 501,
+  "pairs": 400,
+  "policies": {
+   "Relay-BP (kit)": {
+    "fails": 2,
+    "ler": 0.000417624589193033,
+    "ler_ci": [
+     5.052218711554257e-05,
+     0.0015077865646707656
+    ],
+    "escalated": 0.0,
+    "mean": 142.91200561247933,
+    "p50": 41.5106040018145,
+    "p95": 484.3229066020281,
+    "p99": 2137.180144492195,
+    "max": 2740.6033740007842
+   },
+   "fast Relay-BP alone": {
+    "fails": 11,
+    "ler": 0.0023210691011593676,
+    "ler_ci": [
+     0.0011578559358342844,
+     0.004149359322934365
+    ],
+    "escalated": 0.0,
+    "mean": 29.256314374952126,
+    "p50": 5.756646000008914,
+    "p95": 152.41353569945173,
+    "p99": 365.062487076866,
+    "max": 554.2664579988923,
+    "paired": {
+     "fail_ratio": 5.5,
+     "fail_ratio_upper95": 1000000000.0,
+     "gate_worse": 9,
+     "gate_better": 0,
+     "mcnemar_p": 0.00390625,
+     "lat_ratio": 0.20471558179852045,
+     "lat_ratio_upper95": 0.23450470950212496,
+     "p99_ratio": 0.17081502839977336,
+     "p99_ratio_upper95": 0.24789869454704058
+    }
+   },
+   "1 seed, escalate if no solution": {
+    "fails": 4,
+    "ler": 0.0008371773591205889,
+    "ler_ci": [
+     0.00022788507124804624,
+     0.002142125252348359
+    ],
+    "escalated": 0.01125,
+    "mean": 70.07598510245771,
+    "p50": 5.756646000008914,
+    "p95": 152.41353569945173,
+    "p99": 2432.4623175899974,
+    "max": 2546.680583003763,
+    "paired": {
+     "fail_ratio": 2.0,
+     "fail_ratio_upper95": 1000000000.0,
+     "gate_worse": 2,
+     "gate_better": 0,
+     "mcnemar_p": 0.5,
+     "lat_ratio": 0.490343584516447,
+     "lat_ratio_upper95": 0.6222231655759516,
+     "p99_ratio": 1.138164381630994,
+     "p99_ratio_upper95": 1.2329199768715213
+    }
+   },
+   "AGREEMENT -> Relay-BP (primary)": {
+    "fails": 2,
+    "ler": 0.000417624589193033,
+    "ler_ci": [
+     5.052218711554257e-05,
+     0.0015077865646707656
+    ],
+    "escalated": 0.02125,
+    "mean": 113.35938362260094,
+    "p50": 11.5005414972984,
+    "p95": 298.6538803965217,
+    "p99": 2779.221749158641,
+    "max": 3847.884373000852,
+    "paired": {
+     "fail_ratio": 1.0,
+     "fail_ratio_upper95": 1.0,
+     "gate_worse": 0,
+     "gate_better": 0,
+     "mcnemar_p": 1.0,
+     "lat_ratio": 0.7932110611475612,
+     "lat_ratio_upper95": 0.9175952029252965,
+     "p99_ratio": 1.3004152955103363,
+     "p99_ratio_upper95": 1.4074240834863663
+    }
+   },
+   "agreement -> Relay-BP, parallel*": {
+    "fails": 2,
+    "ler": 0.000417624589193033,
+    "ler_ci": [
+     5.052218711554257e-05,
+     0.0015077865646707656
+    ],
+    "escalated": 0.02125,
+    "mean": 93.18974778003394,
+    "p50": 5.8326455000496935,
+    "p95": 251.55236570608383,
+    "p99": 2493.333066840496,
+    "max": 3497.171707000234,
+    "paired": {
+     "fail_ratio": 1.0,
+     "fail_ratio_upper95": 1.0,
+     "gate_worse": 0,
+     "gate_better": 0,
+     "mcnemar_p": 1.0,
+     "lat_ratio": 0.6520778109624155,
+     "lat_ratio_upper95": 0.771164769012246,
+     "p99_ratio": 1.1666461871574823,
+     "p99_ratio_upper95": 1.237043128328161
+    }
+   },
+   "agreement -> nconv2": {
+    "fails": 4,
+    "ler": 0.0008371773591205889,
+    "ler_ci": [
+     0.00022788507124804624,
+     0.002142125252348359
+    ],
+    "escalated": 0.02125,
+    "mean": 87.78332039506495,
+    "p50": 11.5005414972984,
+    "p95": 271.1627985559968,
+    "p99": 1763.3434245803023,
+    "max": 3056.1665410023124,
+    "paired": {
+     "fail_ratio": 2.0,
+     "fail_ratio_upper95": 1000000000.0,
+     "gate_worse": 2,
+     "gate_better": 0,
+     "mcnemar_p": 0.5,
+     "lat_ratio": 0.6142473476518026,
+     "lat_ratio_upper95": 0.720358683623514,
+     "p99_ratio": 0.8250794530001034,
+     "p99_ratio_upper95": 1.2447732083448593
+    }
+   }
+  },
+  "verdict": {
+   "accuracy": "PASS",
+   "latency": "FAIL"
+  },
+  "gate": {
+   "shots": 800,
+   "escalated_no_solution": 14,
+   "escalated_disagree": 3,
+   "agreed": 783,
+   "agreed_wrong": 0,
+   "agreed_wrong_first_leg": 0,
+   "agreed_first_leg": 674,
+   "agreed_wrong_later": 0,
+   "agreed_later": 109,
+   "agreed_wrong_by_basis": [
+    0,
+    0
+   ],
+   "hard_shots": 126,
+   "hard_logical_differ": 13,
+   "hard_iterations_differ": 122
+  },
+  "prefix": [
+   {
+    "pairs": 400,
+    "gate_fails": 2,
+    "relay_fails": 2,
+    "lat_ratio": 0.7932110611475612
+   }
+  ]
+ }
+]
