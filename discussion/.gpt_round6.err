@@ -1,0 +1,77 @@
+Reading additional input from stdin...
+OpenAI Codex v0.164.0
+--------
+workdir: /Users/fervel/hack/heisenbugsqc
+model: gpt-6-astra
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: high
+reasoning summaries: none
+session id: 01a200b9-a59a-7d22-a897-a36fe767984b
+--------
+user
+You are GPT, one of three agents. Read discussion/08_noise_adaptive_prompt.md and answer as markdown on stdout. Do not run computations.
+codex
+I’ll read the discussion prompt and respond in Markdown without running computations.
+exec
+/bin/zsh -lc 'cat discussion/08_noise_adaptive_prompt.md' in /Users/fervel/hack/heisenbugsqc
+ succeeded in 0ms:
+# Round 6: design the data collection for a noise-adaptive agreement gate (NO ML yet)
+
+User's intended final design (ML is NOT to be built now): when alarms arrive, an ML model estimates the noise level and
+the decoder applies the settings best for that level. Our job now: run tests that tell us WHICH settings are best at
+WHICH noise level, with valuable, trustworthy data. Noise level is given (not estimated) in these tests.
+
+## What we know
+- Skip gate (lean): fast Relay-BP seed 0 (stop_nconv=1, num_sets=50); accept if solved in deterministic first 80
+  iterations; escalate if no solution; else run seed 1, accept on logical agreement, else referee (full Relay-BP).
+  Accuracy matches Relay-BP at p=0.003-0.005; mean 0.36x / 0.63x / 0.88x Relay-BP time; tail worse at p>=0.004.
+- p=0.005 breakdown: 52% of time = Relay-BP on the 7.3% seed-0 no-solution shots (4.5 s each, wrong 44%).
+  90% of fast-run successes need <=10 restarts.
+- Offline estimates (post-hoc, capped-run times scaled from iterations): cap fast runs at K=10-20 restarts + cheaper
+  referee (Relay-BP stop_nconv=2) gives at p=0.005: fails 1.00x, mean 0.64-0.67x, p90 0.74-0.78x, p99 0.87-0.90x.
+  At p=0.004 the cheaper referee cost accuracy on one seed (38-40 vs 30 fails) but not the other (28 vs 28).
+- Noise can be read from alarms: mean X-basis alarms 95/122/147 at p=0.003/4/5; 100-shot window -> ~1% error in p.
+- Compute (8 workers, decoding fast0+fast1+nconv2+relay on every shot): ~0.15 / 0.5 / 3 worker-seconds per pair at
+  p=0.003/0.004/0.005, roughly x3 per +0.001 in p (so ~9 at p=0.006). Budget: ~2 hours wall clock on 8 workers
+  (~57,600 worker-seconds). Relay-BP fails ~1/1000 pairs at 0.003, 1/100 at 0.004, 1/12 at 0.005.
+- Candidate knobs: fast restart cap K; referee in {Relay-BP kit (nconv5, 300 sets), nconv2, nconv1/300 sets};
+  maybe BP-OSD as the challenge's other baseline; maybe XYZ Relay-BP referee (1728 detectors, ~68k columns, slower).
+- Pre-registration style used before: fresh seeds, fixed criteria, paired comparisons on identical shots.
+
+## Questions (concise, under ~400 words, concrete numbers)
+1. Which noise levels and how many pairs at each, within the budget? Consider what is needed to estimate failure
+   ratios vs Relay-BP usefully at low p, and to cover the regime boundary where the best settings switch.
+2. Which decoders/knobs must be measured directly on every shot (vs derived offline)? Is the "capped run = prefix of
+   the 50-restart run" derivation trustworthy, or must caps be run for real?
+3. Include BP-OSD? Include XYZ referee? Worth the compute?
+4. What should the output be: what table/plot answers "best settings per noise level", and what pass criteria?
+
+codex
+1. **Noise grid and allocation.** Target these pair counts, split equally between discovery and fresh-seed confirmation:
+
+   | Noise \(p\) | Pairs |
+   |---|---:|
+   | 0.003 | 100,000 |
+   | 0.004 | 6,000 |
+   | 0.0045 | 2,000 |
+   | 0.005 | 3,000 |
+   | 0.0055 | 300 |
+   | 0.006 | 200 |
+
+   Budget **35,000 worker-seconds** for core decoding, **17,000** for cap validation and direct policy timing, and **5,600** contingency. These are targets, not guaranteed costs: intermediate-noise costs and extra executions need a throughput pilot. Freeze any revised allocation using runtime measurements before inspecting comparative failures.
+
+   Low-\(p\) accuracy is the limitation: even 100,000 pairs yields only roughly 100 baseline failures. Splitting reduces confirmation precision further. Tight failure-ratio equivalence may remain unresolved. The highest-noise points are exploratory; concentrate additional boundary sampling near 0.004–0.005.
+
+2. **Measure versus derive.** Run Relay-BP on every shot. During discovery, collect both fast seeds’ restart traces and compare **K = 10, 20, 50**, with referees **nconv5/300, nconv2, nconv1/300**. Referees need execution only on the union of shots routed to them by candidate policies.
+
+   Treat prefix equivalence as a hypothesis. Audit real caps against uncapped prefixes on **1,000 stratified pairs**, including cap hits and no-solution cases. Require identical restart states, stopping decisions, and corrections; inspect whether caps alter RNG consumption or scheduling. Any mismatch invalidates replay. Even exact replay establishes outcomes, not wall-clock latency. On confirmation shots, execute the frozen selected policy directly, including actual caps, and time the baseline separately under matched conditions.
+
+3. **Other decoders.** Exclude XYZ from this budget. Include BP-OSD only if required for challenge reporting; give it a separate **2,000-worker-second ceiling drawn from contingency**, using representative paired subsets. Neither should displace accuracy confirmation.
+
+4. **Deliverable and acceptance.** Produce a per-noise table with selected configuration, failures, paired discordant outcomes, failure ratio and confidence interval, mean/p90/p99 latency ratios, and escalation rate. Plot accuracy–latency frontiers and selected settings versus noise.
+
+   Pre-register selection: fastest mean among policies whose confirmation **one-sided 95% upper failure-ratio bound ≤1.20**, with multiplicity adjustment across claimed noise levels, and **upper confidence bounds below 1 for mean, p90, and p99 latency ratios**. Otherwise retain Relay-BP and label evidence insufficient.
+tokens used
+8,899

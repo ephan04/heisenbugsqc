@@ -1,0 +1,150 @@
+Reading additional input from stdin...
+OpenAI Codex v0.164.0
+--------
+workdir: /Users/fervel/hack/heisenbugsqc
+model: gpt-6-astra
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: high
+reasoning summaries: none
+session id: 01a20082-81e5-7790-83dd-801ac5834e6b
+--------
+user
+You are GPT, one of three agents. Read discussion/04_verify_prompt.md and experiments/agree.py and answer as markdown on stdout. Do not run computations; CPUs are busy with the experiment.
+codex
+I’ll read the verification prompt and experiment code, then provide the requested analysis without running computations.
+exec
+/bin/zsh -lc 'cat discussion/04_verify_prompt.md experiments/agree.py' in /Users/fervel/hack/heisenbugsqc
+ succeeded in 0ms:
+# Round 4: pre-register the verification of the agreement gate (BEFORE seeing new results)
+
+The user asked us to double-check that the agreement gate is genuinely effective across shot counts and noise levels.
+Recap of round 3: on 1500 pairs at p=0.004 (CPU-contended run), agreement gate (2 seeds of fast Relay-BP,
+stop_nconv=1/num_sets=50; escalate on disagreement or no-solution) had 16-17 pair failures vs Relay-BP 21, mean
+0.6-0.7x, median 0.3x of Relay-BP; 1.4% escalated; 3/2958 agreed-but-wrong. p99 not improved.
+
+## Now running (fresh seeds, idle machine, 8 workers, every decoder on every shot; experiments/agree.py)
+- p=0.004, 3000 pairs, seed 101
+- p=0.003, 8000 pairs, seed 201 (Relay-BP fails ~1/1000 pairs here, so more shots)
+- p=0.005, 3000 pairs, seed 301
+- p=0.004, 3000 pairs, seed 401 (replication)
+Stored per shot and basis: correct, seconds, success, iterations, 12-bit logical prediction, for
+fast_s0, fast_s1, relay_nconv2, relay (kit settings).
+
+## Planned report (experiments/agree_report.py, to be written)
+Per run: pair failures + LER/cycle with exact (Clopper-Pearson) 95% CI; mean/p50/p95/p99/max pair time;
+policies: Relay-BP, BP-OSD-free set (relay_fast alone, fast + escalate-if-no-solution [1 seed], agreement->relay,
+agreement->nconv2), serial (sum of the two fast runs) and parallel (max) timing; escalation rate;
+paired discordance vs Relay-BP (gate wrong & relay right, gate right & relay wrong) with exact McNemar test;
+agreed-but-wrong count split by "both stopped in the shared deterministic first leg (iterations <= 80)" vs later;
+seed check: fraction of hard shots where the two seeds' iterations differ; shot-count stability: metrics on
+first 1000 / 2000 / all pairs; the two p=0.004 seeds compared; a plot of LER vs mean latency per p.
+
+## Questions (under ~350 words)
+1. What should count as "effective" (pre-registered pass/fail criteria) for accuracy and for latency?
+2. What else must the report include or check so we don't fool ourselves? Anything wrong in the plan?
+3. Any confound in the setup (timing, seeds, pairing, shared first leg, chunking) we should fix now?
+"""Agreement-based escalation: two cheap Relay-BP runs with different seeds; escalate to full Relay-BP
+only when they disagree on the logical outcome (or either finds no solution).
+
+  python experiments/agree.py --p 0.004 --shots 3000 --seed 101 --out data/agree_p0.004_s101.npz
+
+Every decoder runs on every shot, so any policy can be scored offline on identical shots
+(experiments/agree_report.py). No learned parameters, so every shot is a test shot.
+"""
+import argparse
+import os
+import sys
+import time
+from multiprocessing import Pool
+from pathlib import Path
+
+import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "kit"))
+from circuit import GROSS_CIRCUITS, dem_matrices, detector_ids, load_circuit, sample  # noqa: E402
+from decoders import relay_decoder  # noqa: E402
+
+FAST = dict(stop_nconv=1, num_sets=50)
+DECODERS = ["fast_s0", "fast_s1", "relay_nconv2", "relay"]
+CHUNKS_PER_WORKER = 6   # small chunks so slow shots don't leave one worker as a straggler
+
+
+def work(job):
+    basis, p, det, obs = job
+    H, L, priors = dem_matrices(load_circuit(GROSS_CIRCUITS[basis], p), basis)
+    decs = [relay_decoder(H, priors, seed=0, **FAST), relay_decoder(H, priors, seed=1, **FAST),
+            relay_decoder(H, priors, stop_nconv=2), relay_decoder(H, priors)]
+    n, m = len(det), len(decs)
+    out = dict(correct=np.zeros((n, m), bool), seconds=np.zeros((n, m)), success=np.zeros((n, m), bool),
+               iterations=np.zeros((n, m), np.int32), logical=np.zeros((n, m, L.shape[0]), np.uint8))
+    for k in range(n):
+        for j, dec in enumerate(decs):
+            start = time.perf_counter()
+            res = dec.decode_detailed(det[k])
+            out["seconds"][k, j] = time.perf_counter() - start
+            pred = (L @ np.asarray(res.decoding, np.uint8)) % 2
+            out["logical"][k, j] = pred
+            out["correct"][k, j] = (pred == obs[k]).all()
+            out["success"][k, j] = bool(res.success)
+            out["iterations"][k, j] = res.iterations
+    return out
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--p", type=float, default=0.004)
+    ap.add_argument("--shots", type=int, default=3000)
+    ap.add_argument("--seed", type=int, default=101)
+    ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--out", required=True)
+    args = ap.parse_args()
+    jobs = []
+    chunks = args.workers * CHUNKS_PER_WORKER
+    for b, basis in enumerate("XZ"):
+        circuit = load_circuit(GROSS_CIRCUITS[basis], args.p)
+        det, obs = sample(circuit, args.shots, args.seed + b)
+        det = det[:, detector_ids(circuit, basis)]
+        jobs += [(basis, args.p, det[c], obs[c]) for c in np.array_split(np.arange(args.shots), chunks)]
+    start = time.time()
+    with Pool(args.workers) as pool:
+        res = pool.map(work, jobs, chunksize=1)
+    half = len(jobs) // 2
+    arrays = {key: np.stack([np.concatenate([r[key] for r in res[:half]]),
+                             np.concatenate([r[key] for r in res[half:]])], axis=1)   # pair, basis, ...
+              for key in res[0]}
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(args.out, **arrays, decoders=DECODERS, p=args.p, shots=args.shots, seed=args.seed,
+                        workers=args.workers)
+    print(f"{args.out}: {args.shots} pairs at p={args.p} in {time.time() - start:.0f} s")
+
+
+if __name__ == "__main__":
+    main()
+
+codex
+### 1. Pre-register effectiveness
+
+- **Primary policy:** agreement→Relay, with **serial** timing. Treat agreement→nconv2 and other policies as secondary.
+- **Accuracy:** propose a noninferiority margin of **20% relative increase in pair-failure probability**, fixed before inspecting results. Pass only if the paired one-sided confidence bound excludes that increase at every noise level. Require both p=0.004 replications to support the conclusion. A nonsignificant McNemar test does **not** establish equivalence; insufficient precision means **inconclusive**.
+- **Latency:** require the upper confidence bound for the mean-time ratio to be **≤0.8** at every noise level. Report tails separately; claim tail improvement only with supporting uncertainty estimates.
+- Use simultaneous bounds for the primary comparisons. These sample sizes may leave accuracy inconclusive, especially at p=0.003.
+
+### 2. Report safeguards
+
+- Freeze the gate: accept only when **both fast decoders succeed and their entire logical vectors agree**. Otherwise use the designated fallback. Count terminal no-solution as operational failure even if its logical prediction happens to match; report logical mismatch separately.
+- Include paired discordance counts, paired uncertainty for accuracy differences/ratios, and paired bootstrap intervals for latency ratios.
+- Report agreed-but-wrong **numerators and denominators**, by basis and first-leg category. Matching logical outputs can reflect correlated mistakes.
+- Prefix results are descriptive, nested checks—not independent replications or opportunities to select a favorable stopping point.
+- Define pair failure explicitly. X/Z samples here are independently generated and paired by index; their union is a synthetic endpoint, not an observed joint physical trial.
+- Explain the assumptions converting pair failure into LER/cycle. Clopper–Pearson applies directly to a binomial failure probability, not automatically to that conversion.
+
+### 3. Setup confounds
+
+- Fixed decoder order confounds timing with cache, thermal, and scheduling effects. Counterbalance order in a separate timing validation; record thread counts, hardware, and contention.
+- `max(fast_s0, fast_s1)` is hypothetical parallel latency; serial measurements do not demonstrate it.
+- Each chunk reconstructs decoders with repeated seeds. Verify RNG/reset behavior and record chunk boundaries; chunking may affect outcomes and invalidate shot-independent uncertainty assumptions.
+- Different iteration counts do not establish seed independence. Verify actual seed use and prediction diversity on hard shots.
+tokens used
+6,162

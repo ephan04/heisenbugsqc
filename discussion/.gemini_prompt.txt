@@ -1,0 +1,366 @@
+You are Gemini, one of three agents. Do not run any tools or commands; answer directly as markdown text (under ~900 words). Here is the brief, followed by the key kit files.
+
+# Brief: ML-assisted hierarchical decoder for the Gross code (MidQWest 2026, Infleqtion Challenge 1)
+
+Three AI agents (Claude, GPT via Codex, Gemini via Antigravity) are discussing the approach before building a prototype. Please read this, then answer the questions at the bottom.
+
+## The challenge
+- Code: [[144,12,12]] Gross code (bivariate bicycle). Memory experiments, 12 noisy cycles, X and Z basis.
+- Kit is in `kit/` (read `kit/README.md`, `kit/decoders.py`, `kit/circuit.py`, `kit/baseline.py`).
+- Per-basis decoding problem: H is 936 detectors x 8784 mechanisms (`dem_matrices(circuit, "X")`). Full XYZ problem: 1728 x ~68k (`dem_matrices(circuit)`).
+- Baselines: BP-OSD (CS-10, 80 iters) and Relay-BP (relay-bp 0.2.2). At p=0.004: BP-OSD ~4.4e-3/cycle, 0.33 s mean; Relay-BP ~8.7e-4/cycle, 0.38 s mean, p99 ~6 s.
+- Required: sweep p in {0.003, 0.004, 0.005}; report logical error rate per cycle, decode latency (mean + tail), resources. Compare on the same shots.
+- Bonus: use qubit *loss* / heralding info. The kit does NOT simulate loss; would need to be added (e.g. Stim HERALDED_ERASE).
+- Environment: Python 3.12 venv at `.venv` with stim, ldpc 2.4.1 (BpDecoder, BpOsdDecoder, BpLsdDecoder), relay_bp, numpy, scipy, scikit-learn. 10 CPU cores, Apple Silicon, no GPU. Hackathon timescale (~1-2 days).
+
+## The team's proposed approach
+1. **Light decoder** pass: cheap, removes quick/easy errors (e.g. short BP run, keep confident bits / or accept if converged).
+2. **ML router** looks at the residual / BP diagnostics and routes each shot:
+   - easy -> accept light result
+   - moderately hard -> fast decoder, slightly lower accuracy (candidates: BP-LSD, BP-OSD order 0, trimmed Relay-BP)
+   - hard -> slow, accurate decoder (Relay-BP, possibly XYZ-Relay-BP on the full 1728-detector problem)
+
+Related work: hierarchical decoding survey arXiv:2611.16271 (Sec. III-B predecoding cascades); BP partial decoder; lazy predecoder; GARI-NMS (2510.14060); qDither-BP (2611.07144); greedy peeling for BB codes (2604.11352); BP convergence prediction (2604.07995).
+
+## Questions (answer concisely, be concrete and critical)
+1. Is this 3-tier design the best use of 1-2 days? What would you change, cut or add? Is the middle tier worth it?
+2. Light stage: what exactly (algorithm, iteration count, accept rule)? Is partial "commit confident bits, pass residual" a good idea for this code, or just accept/reject whole shots?
+3. Router: features, model, and how to get labels cheaply. What is the routing objective (e.g. minimize mean/p99 latency subject to LER <= Relay-BP + epsilon)?
+4. Where could the ML router realistically fail or mislead? What are the evaluation traps?
+5. Loss: worth doing in the hackathon? If yes, simplest correct way.
+6. Propose a minimal first experiment (small shot count, runs in < 15 min on 10 cores) that tells us whether the idea has legs.
+
+Write your answer to the file named in your prompt. Do not modify `kit/`.
+
+===== kit/README.md =====
+# Midwest Quantum Hackathon Infleqtion: ML-assisted decoding of the [[144,12,12]] Gross code
+
+| file | what it does |
+|------|--------------|
+| `circuits/` | the X and Z memory circuits of the Gross code and their schedule |
+| `baseline.py` | step 1: run BP-OSD and relay-BP |
+| `make_dataset.py` | step 2: save training and test data |
+| `circuit.py`, `decoders.py` | the functions behind the two steps |
+| `make_circuit.py` | generate the circuits, other codes and round counts |
+| `test_kit.py` | tests |
+
+## Setup
+
+Tested with Python 3.12.
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+`relay-bp` builds from source and needs a Rust toolchain (https://rustup.rs). Without Rust,
+remove its line from `requirements.txt`. `baseline.py` then skips relay-BP.
+
+## The experiment
+
+The kit follows the relay-BP paper (arXiv:2506.01779), which decodes the syndrome circuit
+of the Gross code paper (Bravyi et al., Nature 627, 778). `circuits/README.md` has the
+details.
+
+- **X memory.** The data qubits start in |+>. 12 noisy syndrome cycles follow, and a
+  noiseless X measurement of the data qubits ends the experiment. The 12 observables are
+  the X logical operators.
+- **Z memory.** The same with |0>, Z measurements and the Z logical operators.
+- **Decoding.** A shot of X memory gives 1728 detector bits. The baselines decode the 936
+  bits on X checks. This problem has 8784 error mechanisms. Z memory is decoded from its
+  936 bits on Z checks.
+- **Failure.** A shot fails when the decoder predicts any logical operator wrong. Shot k of
+  X memory is paired with shot k of Z memory, and the pair fails when either fails.
+- **Rate.** With failure fraction P over the pairs, the logical error rate per cycle is
+  1 - (1 - P)^(1/12).
+
+## Step 1: reproduce the baselines
+
+```bash
+python baseline.py --p 0.004 --shots 10000
+```
+
+```
+10000 shots at p=0.004, 12 cycles, failures listed as [X Z]
+bposd      failures [253 269] of 10000  per cycle 4.37e-03 +- 1.9e-04  mean 326.2 ms  p99 1165 ms
+relay-bp   failures [45 60] of 10000  per cycle 8.71e-04 +- 8.5e-05  mean 378.7 ms  p99 5954 ms
+```
+
+Run it at p = 0.003, 0.004 and 0.005. The shots are spread over worker processes
+(`--workers`, default: half the cores). The time covers one X shot and one Z shot.
+
+The circuits and the decoder settings are those of the relay-BP authors' published results
+(https://github.com/trmue/relay, `examples/data`). The settings are at the top of
+`decoders.py`. Reference results with 10,000 shots per basis, next to the authors' counts:
+
+| p | decoder | failures X, Z | rate per cycle | authors' failures X, Z (shots) | authors' rate | mean time | run time, 8 cores |
+|---|---------|---------------|----------------|--------------------------------|---------------|-----------|-------------------|
+| 0.003 | BP-OSD | 26, 30 | 4.7e-4 +- 0.6e-4 | 282, 316 (100,000) | 5.0e-4 | 0.14 s | 6 min |
+| 0.003 | relay-BP | 3, 2 | 4.2e-5 +- 1.9e-5 | 32, 40 (100,000) | 6.0e-5 | 0.10 s | |
+| 0.004 | BP-OSD | 253, 269 | 4.4e-3 +- 0.2e-3 | 244, 265 (10,000) | 4.3e-3 | 0.33 s | 17 min |
+| 0.004 | relay-BP | 45, 60 | 8.7e-4 +- 0.9e-4 | 53, 44 (10,000) | 8.1e-4 | 0.38 s | |
+| 0.005 | BP-OSD | 1302, 1286 | 2.3e-2 +- 0.05e-2 | 660, 651 (5,000) | 2.3e-2 | 0.59 s | 58 min |
+| 0.005 | relay-BP | 411, 414 | 6.9e-3 +- 0.2e-3 | 216, 205 (5,000) | 7.1e-3 | 1.7 s | |
+
+- Your counts will differ from ours within the statistical error.
+- Relay-BP at p = 0.003 fails on a handful of shots in 10,000. Our run with 100,000 shots
+  per basis gave 43 and 54 failures, a rate of 8.0e-5 +- 0.8e-5.
+
+## Step 2: make training and test data
+
+```bash
+python make_dataset.py --basis X --p 0.004 --shots 20000 --seed 1 --out train_X.npz
+python make_dataset.py --basis X --p 0.004 --shots 10000 --seed 2 --out test_X.npz
+```
+
+Each file holds `detectors` (1728 bits per shot) and `observables` (the label, 12 bits per
+shot). `basis_detectors` lists the 936 columns that the baselines decode. Your decoder may
+use all 1728. Use different seeds for training and test data.
+
+## Scoring your own decoder
+
+`decoders.score(decode, L, det, obs)` scores any function that maps one syndrome to an error
+vector over the columns of `H`. `dem_matrices(circuit, "X")` gives `H`, `L` and the priors
+of X memory, and `baseline.py` shows the full loop over both experiments. If your model
+predicts the observable bits directly, compare them with `observables`.
+
+Compare decoders on the same shots. Quote the rate per cycle with `decoders.per_cycle_rate`.
+
+`dem_matrices(circuit)` gives the problem with all 1728 detectors and about 68,000 error
+mechanisms. It keeps the correlations between X and Z errors.
+
+## Rules of thumb
+
+- **Noise.** Work at p = 0.003, 0.004 and 0.005.
+- **Shots.** 10,000 shots per basis are enough at p = 0.004 and 0.005. Relay-BP fails on
+  one pair in 12 at p = 0.005, one in 100 at p = 0.004 and one in 1000 at p = 0.003.
+- **Slow shots.** At p = 0.004 a typical pair takes 0.1 s with relay-BP and 0.3 s with
+  BP-OSD. One pair in 100 takes more than 1 s with BP-OSD and more than 5 s with relay-BP.
+
+## Other circuits
+
+```bash
+python make_circuit.py --code bb72 --basis X --out bb72_X.stim
+python make_circuit.py --code bb72 --basis Z --out bb72_Z.stim
+python baseline.py --circuits bb72_X.stim bb72_Z.stim --cycles 6 --p 0.004
+```
+
+`make_circuit.py` builds the same experiment for the other codes of the Gross code paper
+(`bb72`, `bb90`, `bb108`) and for any number of rounds. Pass the number of noisy cycles to
+`baseline.py` with `--cycles`.
+
+The scripts expect the kit's convention: detector coordinate 0 for X checks and 1 for
+Z checks.
+
+## Tests
+
+```bash
+pip install pytest && python -m pytest test_kit.py
+```
+
+===== kit/decoders.py =====
+"""Baseline decoders (BP-OSD and relay-BP) at the relay-BP authors' settings, and a shared scoring loop.
+
+The settings are those of the authors' published results for the Gross code:
+https://github.com/trmue/relay, examples/data/bicycle_bivariate_144_12_12_fine_ler_sweep.csv
+"""
+import time
+
+import numpy as np
+from ldpc import BpOsdDecoder
+
+# BP-OSD: 80 min-sum iterations, then a combination sweep of order 10.
+BPOSD_SETTINGS = {"max_iter": 80, "bp_method": "minimum_sum", "ms_scaling_factor": 1.0,
+                  "osd_method": "OSD_CS", "osd_order": 10}
+# Relay-BP: plain min-sum, a first leg of 80 iterations with memory strength 0.15, up to 300
+# more legs of 60 iterations with memory strengths drawn from the interval, stop after 5 solutions.
+RELAY_SETTINGS = {"alpha": 1.0, "gamma0": 0.15, "pre_iter": 80, "num_sets": 300, "set_max_iter": 60,
+                  "gamma_dist_interval": (-0.22628432386414646, 0.6216020925981884), "stop_nconv": 5}
+
+
+def bposd_decoder(H, priors, **changes):
+    """BP-OSD at the authors' settings. Keyword arguments replace single settings."""
+    return BpOsdDecoder(H, error_channel=list(priors), **(BPOSD_SETTINGS | changes))
+
+
+def relay_decoder(H, priors, **changes):
+    """Relay-BP at the authors' settings. Keyword arguments replace single settings."""
+    import relay_bp  # optional: needs a Rust build
+    return relay_bp.RelayDecoderF64(H.tocsr(), error_priors=priors, **(RELAY_SETTINGS | changes))
+
+
+def score(decode, L, det, obs, before_shot=None):
+    """Decode every shot. Returns (failed, seconds) with one entry per shot.
+
+    decode maps one syndrome to an error vector over the columns of H.
+    A shot fails when any predicted observable is wrong.
+    before_shot(k) runs before shot k and is not timed.
+    """
+    failed, seconds = np.zeros(len(det), bool), np.zeros(len(det))
+    for k, (syndrome, truth) in enumerate(zip(det, obs, strict=True)):
+        if before_shot:
+            before_shot(k)
+        error, seconds[k] = _timed(decode, syndrome)
+        predicted = (L @ error) % 2   # uint8 sums wrap at 256, which preserves the parity
+        failed[k] = (predicted != truth).any()
+    return failed, seconds
+
+
+def _timed(decode, syndrome):
+    """(error vector, seconds) of one decode call."""
+    start = time.perf_counter()
+    error = decode(syndrome)
+    return np.asarray(error, np.uint8), time.perf_counter() - start
+
+
+def per_cycle_rate(failed, cycles):
+    """(rate, standard error) of the logical error rate per syndrome cycle.
+
+    failed marks the shots that failed. With failure fraction P the rate is
+    1 - (1 - P)^(1/cycles).
+    """
+    total = failed.mean()
+    sigma = np.sqrt(total * (1 - total) / len(failed))
+    rate = 1 - (1 - total) ** (1 / cycles)
+    rate_plus_sigma = 1 - (1 - min(total + sigma, 1.0)) ** (1 / cycles)
+    return rate, rate_plus_sigma - rate
+
+
+def print_score(name, failed, seconds, cycles):
+    """One line: failures per basis, logical error rate per cycle, decode time per shot.
+
+    failed and seconds have one row per shot and one column per memory basis.
+    A row fails when any of its bases fails. Its decode time is the sum over the bases.
+    """
+    rate, error = per_cycle_rate(failed.any(axis=1), cycles)
+    ms = seconds.sum(axis=1) * 1e3
+    print(f"{name:10s} failures {failed.sum(axis=0)} of {len(failed)}  per cycle {rate:.2e} +- {error:.1e}  "
+          f"mean {ms.mean():.1f} ms  p99 {np.percentile(ms, 99):.0f} ms")
+
+===== kit/circuit.py =====
+"""Load a Stim memory circuit and turn it into decoder inputs."""
+from pathlib import Path
+
+import numpy as np
+import scipy.sparse as sp
+import stim
+
+CHECK_COORDINATE = {"X": 0, "Z": 1}   # detector coordinate of a check type in the kit's circuits
+# The X memory and the Z memory experiment of the Gross code, by memory basis.
+GROSS_CIRCUITS = {basis: str(Path(__file__).parent / "circuits" / f"gross_{basis}_r12_p0.001.stim") for basis in "XZ"}
+
+
+def load_circuit(path, p=None):
+    """Read a Stim circuit. If p is given, set its noise strength to p."""
+    circuit = stim.Circuit.from_file(path)
+    return circuit if p is None else rescale_noise(circuit, p)
+
+
+def noise_strengths(circuit):
+    """All distinct noise probabilities in the circuit."""
+    return {arg for instruction in circuit.flattened() for arg in _noise_args(instruction)}
+
+
+def _noise_args(instruction):
+    """Noise probabilities of one instruction. Gates, resets and annotations have none."""
+    return instruction.gate_args_copy() if stim.gate_data(instruction.name).is_noisy_gate else []
+
+
+def rescale_noise(circuit, p):
+    """Replace the circuit's one noise strength by p. Mixed strengths are refused."""
+    if len(noise_strengths(circuit)) != 1:
+        raise ValueError("rescaling needs a circuit with exactly one noise strength")
+    return _replace_noise(circuit, p)
+
+
+def _replace_noise(circuit, p):
+    """Copy the circuit and set every noise argument to p. Repeat blocks stay repeat blocks."""
+    out = stim.Circuit()
+    for instruction in circuit:
+        if isinstance(instruction, stim.CircuitRepeatBlock):
+            out.append(stim.CircuitRepeatBlock(instruction.repeat_count, _replace_noise(instruction.body_copy(), p)))
+        elif _noise_args(instruction):
+            out.append(instruction.name, instruction.targets_copy(), [p] * len(_noise_args(instruction)))
+        else:
+            out.append(instruction)
+    return out
+
+
+def detector_ids(circuit, basis=None):
+    """Ids of the detectors on X checks (basis "X") or on Z checks (basis "Z"). None gives all.
+
+    The kit's circuits mark X-check detectors with coordinate 0 and Z-check detectors with 1.
+    """
+    if basis is None:
+        return np.arange(circuit.num_detectors)
+    coordinates = circuit.get_detector_coordinates()
+    wanted = [CHECK_COORDINATE[basis]]
+    return np.array([d for d in range(circuit.num_detectors) if coordinates[d] == wanted])
+
+
+def dem_matrices(circuit, basis=None):
+    """Detector error model as H (detectors x mechanisms), L (observables x mechanisms), priors.
+
+    Column k is one error mechanism. H[:, k] marks the detectors it flips, L[:, k] the
+    observables it flips, and priors[k] is its probability. A decoder solves H e = syndrome.
+    With basis "X" or "Z" only the detectors on checks of that type are kept, in the order
+    of detector_ids(circuit, basis). The X memory circuit is decoded with basis "X".
+    """
+    det_ids = detector_ids(circuit, basis)
+    # flattened() expands repeat blocks.
+    dem = circuit.detector_error_model().flattened()
+    errors = _merge_duplicates(dem, _row_numbers(det_ids))
+    if not errors:
+        raise ValueError("no error mechanism flips these detectors, so there is nothing to decode")
+    detectors, observables = zip(*errors, strict=True)
+    H = _incidence_matrix(detectors, len(det_ids))
+    L = _incidence_matrix(observables, circuit.num_observables)
+    return H, L.tocsr(), np.array(list(errors.values()))
+
+
+def _row_numbers(det_ids):
+    """{detector id: its row in H} for the kept detectors."""
+    return {int(kept): row for row, kept in enumerate(det_ids)}
+
+
+def _merge_duplicates(dem, det_rows):
+    """{(detector rows, observables): probability}, one entry per distinct effect.
+
+    Mechanisms with the same effect are merged. Mechanisms that flip no kept detector and
+    no observable are dropped.
+    """
+    merged = {}
+    for instruction in dem:
+        if instruction.type != "error":
+            continue
+        effect, p = _effect(instruction, det_rows), instruction.args_copy()[0]
+        if effect != ((), ()):
+            merged[effect] = _exactly_one_fires(p, merged.get(effect, 0.0))
+    return merged
+
+
+def _effect(error, det_rows):
+    """(kept detector rows, observables) that one error instruction flips."""
+    targets = error.targets_copy()
+    detectors = sorted(det_rows[t.val] for t in targets if t.is_relative_detector_id() and t.val in det_rows)
+    observables = sorted(t.val for t in targets if t.is_logical_observable_id())
+    return tuple(detectors), tuple(observables)
+
+
+def _exactly_one_fires(p, q):
+    """Probability that exactly one of two independent mechanisms fires."""
+    return p * (1 - q) + q * (1 - p)
+
+
+def _incidence_matrix(id_lists, n_rows):
+    """Sparse 0/1 matrix (CSC). Row = detector or observable id, column = error mechanism."""
+    rows = [i for ids in id_lists for i in ids]
+    cols = [col for col, ids in enumerate(id_lists) for _ in ids]
+    return sp.csc_matrix((np.ones(len(rows), np.uint8), (rows, cols)), shape=(n_rows, len(id_lists)))
+
+
+def sample(circuit, shots, seed):
+    """Detector flips and true observable flips as uint8 arrays, one row per shot."""
+    sampler = circuit.compile_detector_sampler(seed=seed)
+    det, obs = sampler.sample(shots, separate_observables=True)
+    return det.astype(np.uint8), obs.astype(np.uint8)

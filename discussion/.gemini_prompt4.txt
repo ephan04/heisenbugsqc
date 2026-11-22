@@ -1,0 +1,109 @@
+You are Gemini, one of three agents. Do not run tools; answer as markdown text.
+
+# Round 4: pre-register the verification of the agreement gate (BEFORE seeing new results)
+
+The user asked us to double-check that the agreement gate is genuinely effective across shot counts and noise levels.
+Recap of round 3: on 1500 pairs at p=0.004 (CPU-contended run), agreement gate (2 seeds of fast Relay-BP,
+stop_nconv=1/num_sets=50; escalate on disagreement or no-solution) had 16-17 pair failures vs Relay-BP 21, mean
+0.6-0.7x, median 0.3x of Relay-BP; 1.4% escalated; 3/2958 agreed-but-wrong. p99 not improved.
+
+## Now running (fresh seeds, idle machine, 8 workers, every decoder on every shot; experiments/agree.py)
+- p=0.004, 3000 pairs, seed 101
+- p=0.003, 8000 pairs, seed 201 (Relay-BP fails ~1/1000 pairs here, so more shots)
+- p=0.005, 3000 pairs, seed 301
+- p=0.004, 3000 pairs, seed 401 (replication)
+Stored per shot and basis: correct, seconds, success, iterations, 12-bit logical prediction, for
+fast_s0, fast_s1, relay_nconv2, relay (kit settings).
+
+## Planned report (experiments/agree_report.py, to be written)
+Per run: pair failures + LER/cycle with exact (Clopper-Pearson) 95% CI; mean/p50/p95/p99/max pair time;
+policies: Relay-BP, BP-OSD-free set (relay_fast alone, fast + escalate-if-no-solution [1 seed], agreement->relay,
+agreement->nconv2), serial (sum of the two fast runs) and parallel (max) timing; escalation rate;
+paired discordance vs Relay-BP (gate wrong & relay right, gate right & relay wrong) with exact McNemar test;
+agreed-but-wrong count split by "both stopped in the shared deterministic first leg (iterations <= 80)" vs later;
+seed check: fraction of hard shots where the two seeds' iterations differ; shot-count stability: metrics on
+first 1000 / 2000 / all pairs; the two p=0.004 seeds compared; a plot of LER vs mean latency per p.
+
+## Questions (under ~350 words)
+1. What should count as "effective" (pre-registered pass/fail criteria) for accuracy and for latency?
+2. What else must the report include or check so we don't fool ourselves? Anything wrong in the plan?
+3. Any confound in the setup (timing, seeds, pairing, shared first leg, chunking) we should fix now?
+
+===== experiments/agree.py =====
+"""Agreement-based escalation: two cheap Relay-BP runs with different seeds; escalate to full Relay-BP
+only when they disagree on the logical outcome (or either finds no solution).
+
+  python experiments/agree.py --p 0.004 --shots 3000 --seed 101 --out data/agree_p0.004_s101.npz
+
+Every decoder runs on every shot, so any policy can be scored offline on identical shots
+(experiments/agree_report.py). No learned parameters, so every shot is a test shot.
+"""
+import argparse
+import os
+import sys
+import time
+from multiprocessing import Pool
+from pathlib import Path
+
+import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "kit"))
+from circuit import GROSS_CIRCUITS, dem_matrices, detector_ids, load_circuit, sample  # noqa: E402
+from decoders import relay_decoder  # noqa: E402
+
+FAST = dict(stop_nconv=1, num_sets=50)
+DECODERS = ["fast_s0", "fast_s1", "relay_nconv2", "relay"]
+CHUNKS_PER_WORKER = 6   # small chunks so slow shots don't leave one worker as a straggler
+
+
+def work(job):
+    basis, p, det, obs = job
+    H, L, priors = dem_matrices(load_circuit(GROSS_CIRCUITS[basis], p), basis)
+    decs = [relay_decoder(H, priors, seed=0, **FAST), relay_decoder(H, priors, seed=1, **FAST),
+            relay_decoder(H, priors, stop_nconv=2), relay_decoder(H, priors)]
+    n, m = len(det), len(decs)
+    out = dict(correct=np.zeros((n, m), bool), seconds=np.zeros((n, m)), success=np.zeros((n, m), bool),
+               iterations=np.zeros((n, m), np.int32), logical=np.zeros((n, m, L.shape[0]), np.uint8))
+    for k in range(n):
+        for j, dec in enumerate(decs):
+            start = time.perf_counter()
+            res = dec.decode_detailed(det[k])
+            out["seconds"][k, j] = time.perf_counter() - start
+            pred = (L @ np.asarray(res.decoding, np.uint8)) % 2
+            out["logical"][k, j] = pred
+            out["correct"][k, j] = (pred == obs[k]).all()
+            out["success"][k, j] = bool(res.success)
+            out["iterations"][k, j] = res.iterations
+    return out
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--p", type=float, default=0.004)
+    ap.add_argument("--shots", type=int, default=3000)
+    ap.add_argument("--seed", type=int, default=101)
+    ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--out", required=True)
+    args = ap.parse_args()
+    jobs = []
+    chunks = args.workers * CHUNKS_PER_WORKER
+    for b, basis in enumerate("XZ"):
+        circuit = load_circuit(GROSS_CIRCUITS[basis], args.p)
+        det, obs = sample(circuit, args.shots, args.seed + b)
+        det = det[:, detector_ids(circuit, basis)]
+        jobs += [(basis, args.p, det[c], obs[c]) for c in np.array_split(np.arange(args.shots), chunks)]
+    start = time.time()
+    with Pool(args.workers) as pool:
+        res = pool.map(work, jobs, chunksize=1)
+    half = len(jobs) // 2
+    arrays = {key: np.stack([np.concatenate([r[key] for r in res[:half]]),
+                             np.concatenate([r[key] for r in res[half:]])], axis=1)   # pair, basis, ...
+              for key in res[0]}
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(args.out, **arrays, decoders=DECODERS, p=args.p, shots=args.shots, seed=args.seed,
+                        workers=args.workers)
+    print(f"{args.out}: {args.shots} pairs at p={args.p} in {time.time() - start:.0f} s")
+
+
+if __name__ == "__main__":
+    main()

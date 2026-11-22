@@ -1,0 +1,752 @@
+Reading additional input from stdin...
+OpenAI Codex v0.164.0
+--------
+workdir: /Users/fervel/hack/heisenbugsqc
+model: gpt-6-astra
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: high
+reasoning summaries: none
+session id: 01a20044-aca8-7b20-afff-3b3a53e3967c
+--------
+user
+You are GPT, one of three agents. Read discussion/02_round2_prompt.md (and optionally experiments/collect.py, experiments/analyze.py, experiments/escalate.py, discussion/02_gemini.md and the round-1 files). Answer its questions in discussion/02_gpt.md, also briefly respond to Gemini's round-2 points. Do not modify kit/ or experiments/. Do not run long computations; a data collection job is using the CPUs.
+codex
+I’ll read the round-2 prompt and Gemini’s response, then write my answers in `discussion/02_gpt.md`. I won’t modify `kit/` or `experiments/` or run computations.
+exec
+/bin/zsh -lc "pwd; rg --files -g 'AGENTS.md' -g 'discussion/**' -g 'experiments/collect.py' -g 'experiments/analyze.py' -g 'experiments/escalate.py'" in /Users/fervel/hack/heisenbugsqc
+ succeeded in 94ms:
+/Users/fervel/hack/heisenbugsqc
+discussion/.gemini_prompt.txt
+discussion/.gemini_prompt2.txt
+discussion/01_gemini.md
+discussion/01_gpt.md
+discussion/02_round2_prompt.md
+discussion/.gemini_round1.log
+discussion/01_claude.md
+discussion/.gemini_round2.err
+discussion/.gpt_round1.log
+discussion/.gemini_round1.err
+discussion/.gpt_round2.log
+discussion/02_gemini.md
+discussion/00_brief.md
+experiments/escalate.py
+experiments/analyze.py
+experiments/collect.py
+
+exec
+/bin/zsh -lc 'cat discussion/02_round2_prompt.md discussion/02_gemini.md discussion/00_brief.md discussion/01_gpt.md discussion/01_claude.md discussion/01_gemini.md' in /Users/fervel/hack/heisenbugsqc
+exec
+/bin/zsh -lc 'for p in /AGENTS.md /Users/AGENTS.md /Users/fervel/AGENTS.md /Users/fervel/hack/AGENTS.md /Users/fervel/hack/heisenbugsqc/AGENTS.md; do if [ -f "$p" ]; then cat "$p"; fi; done' in /Users/fervel/hack/heisenbugsqc
+exec
+/bin/zsh -lc 'cat experiments/collect.py experiments/analyze.py experiments/escalate.py' in /Users/fervel/hack/heisenbugsqc
+ succeeded in 116ms:
+ succeeded in 232ms:
+# Round 2: data is in. Critique and converge.
+
+All three round-1 proposals are in discussion/01_claude.md, 01_gpt.md, 01_gemini.md (summarised here):
+all three said: build 2 tiers first (light BP -> Relay-BP), whole-shot accept/reject (no partial commits), small
+logistic/tree gate, defer loss, judge on paired LER + mean/p99 latency, not router accuracy.
+Differences: Gemini proposed accept only if converged AND correction weight <= 4; GPT proposed BP-20; Claude BP-80.
+
+## Measured: p=0.004, 4000 X/Z pairs (8000 decodes), every tier run on every shot, 10 workers
+Tiers: bp = BP-80 min-sum; lsd = BP-LSD order 0; bposd = kit BP-OSD-CS10; relay_fast = Relay-BP with stop_nconv=1,
+num_sets=50; relay = kit Relay-BP (stop_nconv=5, 300 legs). Times are per pair (X+Z). Test half = 2000 pairs
+(ML router trained on the other half).
+
+- BP-80 converged on 61.5% of shots; **wrong when converged: 0 of 4923**.
+- Correction weight of converged BP: **median 45; fraction <= 4: 0.0%** (the weight<=4 rule escalates everything).
+
+TEST HALF:
+```
+policy                              pair fails  LER/cycle   mean ms  p50   p99 ms
+bposd alone                          109/2000   4.66e-03    302     328    896
+relay alone                           19/2000   7.95e-04    266      88   4007
+relay_fast alone                      53/2000   2.24e-03     53      12    728
+lsd alone                            217/2000   9.53e-03     41      34    158
+BP-80 conv-gate -> relay              19/2000   7.95e-04    254      74   3994   (38% escalated)
+BP-80 conv-gate -> relay_fast         52/2000   2.19e-03     76      38    763
+3-tier ML(thr .5): conv->accept, else LR picks relay_fast vs relay (8% to relay)
+                                      23/2000   9.63e-04    167      39   3778
+3-tier ML(thr .2) (33% to relay)      20/2000   8.37e-04    243      66   3989
+3-tier ORACLE router                  16/2000   6.69e-04    128      38   3115
+```
+Observations (Claude): (1) gating easy shots barely helps mean latency: relay is already fast on easy shots (p50 88 ms);
+the mean is dominated by the ~38% hard shots and the tail. (2) The real lever is on the HARD shots: oracle says sending
+the right hard shots to relay_fast halves mean latency at equal (even lower) LER. (3) Our BP-80-feature router is weak
+(167 ms with +20% LER, or no speedup). (4) LSD is useless here (worse than relay_fast and slower).
+
+Idea from Claude for next step: route on the *medium tier's own output* (confidence-based escalation): run relay_fast,
+then a model on its diagnostics (solution weight/cost, legs/iterations used, converged, BP-80 features) decides whether to
+also run full relay. Cost is relay_fast + sometimes relay.
+
+## Questions (short, under ~500 words, concrete)
+1. Do you agree with the observations? Anything wrong or misleading in this evaluation?
+2. Best next step for the prototype in the next hour: the escalation idea above, something else? What features?
+3. What should the final pitch/plot be given these numbers?
+### 1. Critique of Observations & Evaluation
+
+* **My weight $\le 4$ rule was totally bogus**: I miscalibrated to code-distance bounds instead of the 12-cycle space-time detector graph, where typical valid corrections sum to ~45 flips. The critical finding is that **BP-80 convergence had 0 errors out of 4,923 shots**. BP convergence is a zero-leakage gate ($0\%$ false accept). That is a goldmine.
+* **Agree on observations (1), (3), and (4)**: LSD is strictly dominated. Relay on easy shots is already fast (~88 ms), so Tier 1 alone barely moves the needle against the heavy tail. And BP-80's marginals on non-converged shots are saturated/oscillating, making pre-routing features too noisy—especially with only ~34 positive training events ($y=1$).
+* **One caveat on Claude's analysis**: The simulated 128 ms oracle assumed *direct routing* (running *either* `relay_fast` *or* `relay`), not a sequential cascade. Sequential escalation pays `S[relay_fast]` penalty on shots that eventually escalate to full `relay`. But because `relay_fast` median is only **12 ms**, paying that on the ~38% escalated shots costs only **~4.5 ms on average**—well worth the massive filtering power.
+
+---
+
+### 2. Best Next Step: Confidence-Based Escalation from Medium Tier
+
+**Yes to Claude’s idea.** Do not try to predict relay success from unconverged BP features. Let `relay_fast` run; it produces concrete candidate vectors and perturbation traces.
+
+**Concrete Plan for the Next Hour:**
+1. **Instrument `relay_fast` diagnostics**:
+   * `conv`: Did it find a syndrome-valid correction within `num_sets=50`?
+   * `legs_used`: How many perturbation sets before finding candidate 1? (Leg 1 vs. Leg 48 is a strong confidence proxy).
+   * `effective_weight` (or soft-syndrome likelihood): Cost of the decoded error graph.
+2. **Deterministic Threshold Rule (no ML overfitting)**:
+   * Accept `relay_fast` if: `conv == True` AND `legs_used <= K` (e.g., $K \le 5$) AND `weight <= W_thr`.
+   * Otherwise escalate to full `relay`.
+   * With so few training failures, a 1D/2D empirical Pareto sweep on `(legs_used, weight)` is far more robust than logistic regression.
+
+---
+
+### 3. Final Pitch & Plot
+
+* **The Plot: LER vs. Mean Latency Pareto Curve** (with a secondary LER vs. p99 subplot):
+  * **Anchors**: Standalone baselines (`bposd`, `relay_fast`, `relay`).
+  * **The Frontier**: Sweep the `relay_fast` confidence threshold to trace the cascade curve:
+    $$\text{BP-80 (converged)} \;\longrightarrow\; \text{Relay-Fast (confident)} \;\longrightarrow\; \text{Full Relay}$$
+* **The Pitch**:
+  > *"Zero-leakage tiered decoding: 61% of shots resolved essentially free (BP-80, 0/4923 errors), 28% resolved cheap (Relay-Fast, 12 ms), and only 11% touch the full 300-leg Relay engine. We achieve the full fault-tolerant LER ($7.95 \times 10^{-4}$) at nearly half the mean latency (~140 ms vs 266 ms) while insulating the real-time buffer from the 4-second p99 tail."*
+# Brief: ML-assisted hierarchical decoder for the Gross code (MidQWest 2026, Infleqtion Challenge 1)
+
+Three AI agents (Claude, GPT via Codex, Gemini via Antigravity) are discussing the approach before building a prototype. Please read this, then answer the questions at the bottom.
+
+## The challenge
+- Code: [[144,12,12]] Gross code (bivariate bicycle). Memory experiments, 12 noisy cycles, X and Z basis.
+- Kit is in `kit/` (read `kit/README.md`, `kit/decoders.py`, `kit/circuit.py`, `kit/baseline.py`).
+- Per-basis decoding problem: H is 936 detectors x 8784 mechanisms (`dem_matrices(circuit, "X")`). Full XYZ problem: 1728 x ~68k (`dem_matrices(circuit)`).
+- Baselines: BP-OSD (CS-10, 80 iters) and Relay-BP (relay-bp 0.2.2). At p=0.004: BP-OSD ~4.4e-3/cycle, 0.33 s mean; Relay-BP ~8.7e-4/cycle, 0.38 s mean, p99 ~6 s.
+- Required: sweep p in {0.003, 0.004, 0.005}; report logical error rate per cycle, decode latency (mean + tail), resources. Compare on the same shots.
+- Bonus: use qubit *loss* / heralding info. The kit does NOT simulate loss; would need to be added (e.g. Stim HERALDED_ERASE).
+- Environment: Python 3.12 venv at `.venv` with stim, ldpc 2.4.1 (BpDecoder, BpOsdDecoder, BpLsdDecoder), relay_bp, numpy, scipy, scikit-learn. 10 CPU cores, Apple Silicon, no GPU. Hackathon timescale (~1-2 days).
+
+## The team's proposed approach
+1. **Light decoder** pass: cheap, removes quick/easy errors (e.g. short BP run, keep confident bits / or accept if converged).
+2. **ML router** looks at the residual / BP diagnostics and routes each shot:
+   - easy -> accept light result
+   - moderately hard -> fast decoder, slightly lower accuracy (candidates: BP-LSD, BP-OSD order 0, trimmed Relay-BP)
+   - hard -> slow, accurate decoder (Relay-BP, possibly XYZ-Relay-BP on the full 1728-detector problem)
+
+Related work: hierarchical decoding survey arXiv:2611.16271 (Sec. III-B predecoding cascades); BP partial decoder; lazy predecoder; GARI-NMS (2510.14060); qDither-BP (2611.07144); greedy peeling for BB codes (2604.11352); BP convergence prediction (2604.07995).
+
+## Questions (answer concisely, be concrete and critical)
+1. Is this 3-tier design the best use of 1-2 days? What would you change, cut or add? Is the middle tier worth it?
+2. Light stage: what exactly (algorithm, iteration count, accept rule)? Is partial "commit confident bits, pass residual" a good idea for this code, or just accept/reject whole shots?
+3. Router: features, model, and how to get labels cheaply. What is the routing objective (e.g. minimize mean/p99 latency subject to LER <= Relay-BP + epsilon)?
+4. Where could the ML router realistically fail or mislead? What are the evaluation traps?
+5. Loss: worth doing in the hackathon? If yes, simplest correct way.
+6. Propose a minimal first experiment (small shot count, runs in < 15 min on 10 cores) that tells us whether the idea has legs.
+
+Write your answer to the file named in your prompt. Do not modify `kit/`.
+# GPT response
+
+1. **Build two tiers first.** Use short BP → unchanged per-basis Relay-BP. Compare a deterministic convergence gate against an ML acceptance gate. This isolates whether ML adds value beyond early stopping. Defer full-XYZ decoding, partial corrections, and loss until this comparison works. The 68k-column model adds substantial integration and runtime uncertainty.
+
+   A middle tier earns its place only if it cheaply solves shots rejected by the light stage with sufficiently few additional logical failures. Benchmark one candidate, BP-OSD order 0, on that rejected subset. Add BP-LSD only if time remains. Do not assume a decoder that is fast unconditionally is fast on this selected, difficult population. Repeated BP work across tiers can erase savings; assume cold fallback unless actual state transfer is implemented.
+
+2. **Light stage: whole-shot acceptance.** Start with `BpDecoder(H, error_channel=priors, max_iter=20, bp_method="minimum_sum", ms_scaling_factor=1.0, schedule="parallel", omp_thread_count=1, input_vector_type="syndrome")`. Compare a 10-iteration cap in the pilot. Instantiate once per worker/basis/p.
+
+   Accept only if the returned candidate satisfies `H @ e % 2 == syndrome` **and** passes a validation-selected risk threshold. For the simplest ablation, accept every syndrome-consistent result. Consistency is necessary, but cannot certify the logical sector. Nonconvergence always falls back; an ML prediction must not make an inconsistent candidate acceptable.
+
+   Do not freeze “confident” mechanism bits. These are DEM mechanisms, not independent physical-qubit decisions; BP confidence is not a certificate. Freezing restricts subsequent solutions. Even reversible residual decoding requires tracking the committed logical frame and transforming the inference problem correctly. Pass the original syndrome and priors to fallback.
+
+3. **Router and labels.** Use syndrome weight, BP iteration count, convergence, residual weight, candidate weight, quantiles of absolute posterior LLRs, fraction of low-magnitude LLRs, and prior-weighted candidate cost. Include basis and p; normalize counts where appropriate. The installed API exposes `iter`, `converge`, and `log_prob_ratios`; do not promise iteration histories without instrumentation.
+
+   Start with standardized logistic regression; compare a shallow tree only if useful. Train on syndrome-consistent light outputs. Simulator observables provide free correctness labels: `(L @ e) % 2 != obs`. Relay is a comparator, never ground truth. Run Relay on a modest common sample to record both correctness and runtime; distinguish light-wrong/Relay-right from light-right/Relay-wrong. Oversampled failures need weighting and calibration on natural-prevalence data.
+
+   Optimize measured total mean latency subject to an upper confidence bound on **paired excess per-cycle LER** below a predeclared epsilon. Select thresholds on validation data, then lock them. Also report p95/p99 and fallback fraction. Initially constrain harmful substitutions conservatively rather than relying on rare “rescues” to cancel harm. Hard cases may still dominate p99: routing easy shots away from Relay does not accelerate the hardest fallbacks.
+
+4. **Failure modes and evaluation traps.** High classification accuracy can mean accepting nearly everything while missing rare logical errors. BP can converge confidently to the wrong sector. Confidence calibration can shift with p, basis, or decoder settings. Never expose truth, fallback outputs, or fallback runtime as deployment features.
+
+   Use separate sampling seeds for train/validation/test, splitting original shot pairs before augmentation or balancing. Keep all policies on identical held-out shots. Match the kit: pair X/Z failures with OR, sum their decode times, and report `1-(1-P_pair)^(1/12)`. Do not average basis rates or divide by 12 logical qubits.
+
+   Count light work, feature extraction, inference, and fallback in cascade timing. Report initialization separately, worker/thread counts, peak RSS, and throughput separately from per-pair service latency. Preserve slow shots and timeouts. Use paired uncertainty estimates and binomial bounds for sparse failures; the kit’s zero standard error at zero failures is misleading. A few hundred shots cannot establish Relay-level reliability or a stable p99. Eventually sweep all three p values.
+
+5. **Loss: defer it.** If the core result finishes early, use a separate, explicitly labeled heralded-erasure experiment at fixed cycle boundaries. `HERALDED_ERASE` models a flagged maximally mixed qubit, not persistent missing hardware; its DEM conversion approximates disjoint effects, so sample the circuit, not its DEM ([Stim documentation](https://github.com/quantumlib/Stim/blob/main/doc/gates.md#heralded_erase)). Correct insertion requires repairing measurement-record references, retaining herald locations, and conditioning decoder priors on them. Avoid blindly reusing `rescale_noise`: it rejects mixed probabilities, and effect merging loses location provenance needed for conditioning. Compare identical erasure shots with and without herald information. This is enough extra work to threaten the main deliverable.
+
+6. **First experiment.** At p=0.004, sample 512 X/Z pairs; split 256/128/128 for training/validation/test. Run BP-10, BP-20, unchanged Relay, and baseline BP-OSD on all shots; run OSD-0 only on BP-20 rejects. Use eight single-threaded workers. Based on kit timings, target comfortably under 15 minutes, checking throughput after 32 pairs; unfinished work is reported, not silently discarded.
+
+   Produce acceptance coverage, harmful substitutions, rescues, total mean latency, and descriptive tails for convergence-only and ML gates. Proceed if a gate saves substantial time without an obvious failure increase; retain the middle tier only if it improves that frontier. If ML sees too few failures to learn, retain the deterministic gate and collect more data. This pilot tests feasibility, not noninferiority.
+# Claude — round 1
+
+## Measured data (500 X-basis shots per p, `experiments/probe_bp.py`)
+| p | BP-30 converges | BP-80 converges | wrong when converged | BP-80 mean time |
+|---|---|---|---|---|
+| 0.003 | 59% | 87% | 0 / 437 | 4.7 ms |
+| 0.004 | 35% | 64% | 0 / 318 | 6.9 ms |
+| 0.005 | 9%  | 30% | 0 / 148 | 9.2 ms |
+
+Baselines take ~150–850 ms per shot. **BP-80 is a ~50–70× cheaper stage that, when it converges, has been right every time so far.**
+Relay-BP's first leg *is* an 80-iteration BP, but with `stop_nconv=5` it keeps running legs to find 5 solutions even on easy
+shots, which is why its mean time is high. That is the opening.
+
+## 1. Design
+Keep the idea, simplify the first build: **2 tiers + a learned gate**, then add the middle tier only if it is measured to help.
+- Tier 0: BP-80 (plain min-sum, same priors). If converged → candidate accept.
+- Gate (ML): on converged shots, predict P(logical error). Accept unless risky. On non-converged shots, predict which fallback is needed.
+- Tier 1 (optional): BP-LSD (order 0) or Relay-BP with `stop_nconv=1`.
+- Tier 2: Relay-BP at full settings (optionally XYZ later).
+
+## 2. Light stage
+Accept/reject whole shots, not partial commits. Converged BP gives a full syndrome-consistent correction for free; partial commits
+risk locking in a wrong hypothesis on a code with long-range checks, and the residual syndrome is not easier for Relay-BP in an
+obvious way. Do pass BP's posteriors as features to the router.
+
+## 3. Router
+Features (all from BP-80, near-free): converged, iterations used, syndrome weight, weight of the correction, sum of
+prior-weighted correction cost (−Σ log-likelihood), min |LLR| and count of |LLR| < τ, number of hard-decision flips across
+iterations if cheap. Model: logistic regression or gradient-boosted trees (sklearn HistGradientBoosting). Labels: run tier 1 and
+tier 2 on the training shots once and record correct/incorrect + time. Objective: pick the threshold that minimises mean latency
+subject to LER ≤ LER(Relay-BP) × (1 + ε), and report the whole Pareto curve.
+
+## 4. Traps
+- Failures are rare: a router "always accept" can look 99% accurate and still double the LER. Evaluate on LER, not router accuracy.
+- Same shots for every decoder; train/test seeds disjoint; tune thresholds on a validation split, not test.
+- Count router + tier-0 time in latency; report mean and p99, single-threaded.
+- Distribution shift across p: train on a mix of p or per-p.
+- Relay-BP is the accuracy ceiling for this pipeline (unless XYZ). Sell it as speed at matched accuracy.
+
+## 5. Loss
+Worth a stretch slot only. Simplest correct route: add `HERALDED_ERASE(p_loss)` on data qubits each cycle, let Stim put the
+herald bits in the measurement record, and for each shot raise the priors of mechanisms attached to heralded qubits (rebuild
+priors per shot via `update_channel_probs`). Herald count is also a router feature.
+
+## 6. First experiment (<15 min)
+p=0.004, X basis, 2000 train + 1000 test shots. Run BP-80, BP-LSD, Relay-BP on all; save correctness and time. Report:
+(a) "accept if converged else Relay-BP" — LER and mean/p99 vs Relay-BP alone; (b) oracle router upper bound; (c) a trained
+gate on top. If (a) already gives ~3× mean speed-up at equal LER, the idea has legs.
+### 1. Architecture: Cut to 2 Tiers First
+
+**Cut the 3-tier cascade to a clean 2-tier design.** In a 1–2 day hackathon with Python orchestration, multi-tier routing overhead (dispatching, intermediate data structures, and feature extraction) will cannibalize your latency gains.
+
+* **Tier 1 (Fast Gate):** Short-run BP ($\sim 25$ iterations).
+* **Tier 2 (Heavy Finisher):** Full Relay-BP.
+* **Why drop the middle tier (BP-LSD / BP-OSD-0)?**
+  At $p=0.004$, BP-OSD is barely faster than Relay-BP (0.33 s vs 0.38 s) while having $5\times$ higher logical error rate (LER). Trimming Relay-BP (e.g., fewer sets) or running order-0 OSD creates a messy Pareto frontier that requires fine-tuning multiple routing thresholds. 
+* **The winning play:** At $p=0.004$, roughly $80\text{--}85\%$ of shots are clean or low-weight errors. If Tier 1 finishes in $<10\text{ ms}$ on $80\%$ of shots and passes the remaining $20\%$ to Relay-BP, mean latency immediately drops from $\sim 380\text{ ms}$ to $\sim 85\text{ ms}$ with **zero LER penalty**. Only add a middle tier if Relay-BP’s p99 tail remains unacceptable.
+
+---
+
+### 2. Light Stage: Whole-Shot Accept/Reject
+
+* **Algorithm & Budget:** Min-sum BP (`ldpc.BpDecoder`), 20–30 iterations max, scaled min-sum ($\alpha \approx 0.8\text{--}0.9$).
+* **Acceptance Rule:** 
+  $$\text{Accept } \iff H\hat{e} = s \quad \text{AND} \quad \|\hat{e}\|_0 \le w_{\text{max}} \quad \text{AND} \quad \min |LLR_{\text{post}}| > \theta$$
+  For the Gross code ($d=12$), set $w_{\text{max}} = 3$ or $4$.
+* **Reject Partial Commits:** Do **not** commit confident bits and pass a residual. 
+  1. Correlated trapping sets in bivariate bicycle codes mean confident check/bit nodes can be wrong together.
+  2. Submatrix slicing and re-instantiating CSR matrices in Python per shot adds 5–10 ms of overhead, destroying the speed advantage. Whole-shot accept/reject is branchless, zero-copy, and fast.
+
+---
+
+### 3. Router: Lightweight GBDT / Heuristic Gate
+
+* **Features (must compute in $<0.5\text{ ms}$ in NumPy):**
+  1. Syndrome Hamming weight $\|s\|_0$ (`syndrome.sum()`).
+  2. BP convergence status (`converged` bool).
+  3. Decoded error weight $\|\hat{e}\|_0$.
+  4. Soft metrics: mean, variance, and $\min$ of absolute post-BP LLRs.
+* **Model:** A depth-3 Decision Tree or shallow LightGBM classifier. In fact, a **hard threshold heuristic** on `(converged, weight <= 4, min_LLR > threshold)` will capture 95% of the ML model's utility with microsecond execution latency.
+* **Labeling & Objective:**
+  * Label $y=0$ if Tier 1 decoded correctly (observable parity matches ground truth); $y=1$ if Tier 1 failed or didn't converge.
+  * **Objective:** Minimize mean + tail latency subject to zero LER inflation:
+    $$\min_\tau \; \mathbb{E}[\text{Latency}(\tau)] \quad \text{s.t.} \quad \text{LER}(\tau) \le \text{LER}_{\text{Relay}} + \epsilon$$
+    Calibrate the router threshold $\tau$ (predicting $P(\text{Tier 1 fails})$) so the false-negative rate (classifying a failing shot as "easy") is $\approx 0$.
+
+---
+
+### 4. Failure Modes & Evaluation Traps
+
+1. **The Degeneracy / Undetected Logical Error Trap:** BP can converge ($H\hat{e} = s$) to a valid codeword that differs from the true error by a logical operator. If the router accepts based solely on $H\hat{e}=s$, your LER will explode to BP levels ($4.4 \times 10^{-3}$). The weight bound ($\|\hat{e}\|_0 \le 4$) is vital because minimum logical weight is 12.
+2. **Unmeasured Routing Latency:** All feature extraction, matrix multiplications, and model inferences must be timed inside `score()`'s per-shot clock. If routing takes 5 ms, you cannot afford it on shots that take 2 ms to decode.
+3. **Cross-$p$ Generalization Trap:** A classifier trained at $p=0.004$ will mispredict syndrome density at $p=0.005$. Either train separate thresholds per $p$, or include $p$ as an explicit feature.
+4. **Independent X/Z Pairing Trap:** The kit scores pairs $(X, Z)$. If your router is overly conservative on Z, optimizing X latency yields diminishing returns for the pair's wall-clock time.
+
+---
+
+### 5. Qubit Loss / Heralding: Day 2 Bonus Only
+
+* **Hackathon strategy:** Do not touch this until the 2-tier pipeline works and is benchmarked on Pauli noise.
+* **Simplest correct implementation:**
+  1. Add `HERALDED_ERASE(p_erase)` to data/ancilla idling in Stim circuits (`make_circuit.py`).
+  2. When an erasure fires, the detector error model mechanisms associated with that location lose their biased prior: their prior is set to $p=0.5$ (prior $LLR = 0$).
+  3. Pass the shot-specific priors to `BpDecoder(H, error_channel=shot_priors)`. Min-sum BP natively solves erasures when input LLRs are zeroed.
+
+---
+
+### 6. Minimal First Experiment (< 15 min on 10 cores)
+
+**Goal:** Prove the Tier 1 gate correctly filters $\ge 75\%$ of shots with 0 added logical errors.
+
+* **Configuration:**
+  * $p = 0.004$, 2,000 shots of X and Z.
+  * Parallelize across 10 workers using Python's `multiprocessing`.
+* **Script Logic:**
+  1. Run pure BP (`max_iter=30`) on each shot.
+  2. Apply rule: If converged AND $\|\hat{e}\|_0 \le 4$, accept; else pass to `relay_decoder`.
+* **Success Criteria (to establish that the idea has legs):**
+  * Tier 1 accepts $\ge 75\%$ of shots.
+  * Tier 1 logical failures among accepted shots is exactly 0.
+  * Mean time per shot drops from $\sim 380\text{ ms} \to < 120\text{ ms}$.
+* If this succeeds, the pipeline is viable, and you can proceed to train the ML router for the borderline cases.
+
+ succeeded in 233ms:
+"""Run every candidate tier on the same shots and save per-shot correctness, time and BP features.
+
+  python experiments/collect.py --p 0.004 --shots 1500 --seed 11 --out data/p0.004_s11.npz
+
+One row per (basis, shot). Downstream scripts simulate any routing policy from this table
+without re-decoding.
+"""
+import argparse
+import os
+import sys
+import time
+from multiprocessing import Pool
+from pathlib import Path
+
+import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "kit"))
+from ldpc import BpDecoder, BpLsdDecoder  # noqa: E402
+
+from circuit import GROSS_CIRCUITS, dem_matrices, detector_ids, load_circuit, sample  # noqa: E402
+from decoders import bposd_decoder, relay_decoder  # noqa: E402
+
+LIGHT_ITERS = 80
+TIERS = ["bp", "lsd", "bposd", "relay_fast", "relay"]
+
+
+def build(H, priors):
+    common = dict(error_channel=list(priors), bp_method="minimum_sum", ms_scaling_factor=1.0)
+    return {
+        "bp": BpDecoder(H, max_iter=LIGHT_ITERS, **common),
+        "lsd": BpLsdDecoder(H, max_iter=LIGHT_ITERS, lsd_order=0, **common),
+        "bposd": bposd_decoder(H, priors),
+        "relay_fast": relay_decoder(H, priors, stop_nconv=1, num_sets=50),
+        "relay": relay_decoder(H, priors),
+    }
+
+
+def features(bp, H, priors, syndrome, error):
+    llr = np.asarray(bp.log_prob_ratios)
+    abs_llr = np.abs(llr)
+    weights = np.log((1 - priors) / priors)
+    return [
+        float(bp.converge), float(bp.iter), float(syndrome.sum()), float(error.sum()),
+        float(weights @ error), float(abs_llr.min()), float((abs_llr < 1).sum()),
+        float((abs_llr < 3).sum()), float(((H @ error) % 2 != syndrome).sum()),
+    ]
+
+
+BP_FEATURES = ["converged", "iters", "syndrome_wt", "correction_wt", "correction_cost",
+               "min_abs_llr", "n_llr_lt1", "n_llr_lt3", "residual_wt"]
+RELAY_FEATURES = ["rf_success", "rf_iters", "rf_weight", "rf_cost", "rf_min_abs_post", "rf_n_post_lt1"]
+FEATURE_NAMES = BP_FEATURES + RELAY_FEATURES
+N_BP = len(BP_FEATURES)
+
+
+def relay_features(result, priors, error):
+    """Diagnostics of the fast Relay-BP run: did it stop on a solution, how long it searched, how costly it is."""
+    post = np.abs(np.log(np.clip(np.asarray(result.posterior_ratios, float), 1e-300, None)))
+    weights = np.log((1 - priors) / priors)
+    return [float(result.success), float(result.iterations), float(error.sum()), float(weights @ error),
+            float(post.min()), float((post < 1).sum())]
+
+
+def work(job):
+    basis, p, det, obs = job
+    circuit = load_circuit(GROSS_CIRCUITS[basis], p)
+    H, L, priors = dem_matrices(circuit, basis)
+    decs = build(H, priors)
+    n = len(det)
+    correct = np.zeros((n, len(TIERS)), bool)
+    seconds = np.zeros((n, len(TIERS)))
+    feats = np.zeros((n, len(FEATURE_NAMES)))
+    for k in range(n):
+        for j, name in enumerate(TIERS):
+            start = time.perf_counter()
+            if name == "relay_fast":
+                result = decs[name].decode_detailed(det[k])
+                error = np.asarray(result.decoding, np.uint8)
+            else:
+                error = np.asarray(decs[name].decode(det[k]), np.uint8)
+            seconds[k, j] = time.perf_counter() - start
+            correct[k, j] = not ((L @ error) % 2 != obs[k]).any()
+            if name == "bp":
+                feats[k, :N_BP] = features(decs["bp"], H, priors, det[k], error)
+            elif name == "relay_fast":
+                feats[k, N_BP:] = relay_features(result, priors, error)
+    return correct, seconds, feats
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--p", type=float, default=0.004)
+    ap.add_argument("--shots", type=int, default=1500)
+    ap.add_argument("--seed", type=int, default=11)
+    ap.add_argument("--workers", type=int, default=os.cpu_count())
+    ap.add_argument("--out", required=True)
+    args = ap.parse_args()
+
+    jobs, basis_col = [], []
+    for b, basis in enumerate("XZ"):
+        circuit = load_circuit(GROSS_CIRCUITS[basis], args.p)
+        det, obs = sample(circuit, args.shots, args.seed + b)
+        det = det[:, detector_ids(circuit, basis)]
+        for chunk in np.array_split(np.arange(args.shots), args.workers):
+            jobs.append((basis, args.p, det[chunk], obs[chunk]))
+            basis_col.append(np.full(len(chunk), b))
+    start = time.time()
+    with Pool(args.workers) as pool:
+        results = pool.map(work, jobs)
+    correct, seconds, feats = (np.concatenate(x) for x in zip(*results))
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(args.out, correct=correct, seconds=seconds, features=feats,
+                        basis=np.concatenate(basis_col), tiers=TIERS, feature_names=FEATURE_NAMES,
+                        p=args.p, shots=args.shots, seed=args.seed)
+    print(f"{args.out}: {len(correct)} rows in {time.time() - start:.0f} s")
+    for j, name in enumerate(TIERS):
+        print(f"  {name:10s} wrong {(~correct[:, j]).sum():4d}  mean {seconds[:, j].mean() * 1e3:7.1f} ms  "
+              f"p99 {np.percentile(seconds[:, j], 99) * 1e3:7.0f} ms")
+
+
+if __name__ == "__main__":
+    main()
+"""Simulate routing policies on a table from collect.py, scored as in the kit.
+
+  python experiments/analyze.py data/p0.004_s11.npz
+
+A pair (X shot k, Z shot k) fails when either fails; its time is the sum. Cascade time is
+the light BP time plus the fallback's time when the shot is escalated (cold fallback).
+The ML gate is trained on the first half of the pairs and evaluated on the second half.
+"""
+import sys
+
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
+CYCLES = 12
+
+
+def per_cycle(failed_pairs):
+    P = failed_pairs.mean()
+    hi = P + 1.96 * np.sqrt(max(P * (1 - P), 1 / len(failed_pairs)) / len(failed_pairs))
+    return 1 - (1 - P) ** (1 / CYCLES), 1 - (1 - min(hi, 1)) ** (1 / CYCLES)
+
+
+def pairs(a, basis):
+    """Reshape a per-row array into (shot, basis)."""
+    return np.stack([a[basis == 0], a[basis == 1]], axis=1)
+
+
+def report(name, wrong, secs, escalated=None):
+    fail = wrong.any(axis=1)
+    ms = secs.sum(axis=1) * 1e3
+    rate, hi = per_cycle(fail)
+    esc = f"  escalated {escalated.mean():5.1%}" if escalated is not None else ""
+    print(f"{name:34s} pair fails {fail.sum():4d}/{len(fail)}  LER/cycle {rate:.2e} (95% hi {hi:.1e})  "
+          f"mean {ms.mean():7.1f} ms  p50 {np.median(ms):6.1f}  p99 {np.percentile(ms, 99):7.0f} ms{esc}")
+
+
+def main(path):
+    d = np.load(path, allow_pickle=True)
+    tiers = list(d["tiers"])
+    names = list(d["feature_names"])
+    basis = d["basis"]
+    C = {t: pairs(d["correct"][:, i], basis) for i, t in enumerate(tiers)}
+    S = {t: pairs(d["seconds"][:, i], basis) for i, t in enumerate(tiers)}
+    F = np.stack([d["features"][basis == 0], d["features"][basis == 1]], axis=1)  # shot, basis, feature
+    conv = F[..., names.index("converged")] == 1
+    corr_wt = F[..., names.index("correction_wt")]
+
+    n = len(conv)
+    test = np.arange(n) >= n // 2
+    print(f"{path}: p={float(d['p'])}, {n} pairs; test half = {test.sum()} pairs\n")
+    print(f"BP-80 converged: {conv.mean():.1%} of shots; wrong when converged: "
+          f"{(~C['bp'][conv]).sum()} of {conv.sum()}")
+    print(f"correction weight of converged BP: median {np.median(corr_wt[conv]):.0f}, "
+          f"fraction <= 4: {(corr_wt[conv] <= 4).mean():.1%}\n")
+
+    def cascade(accept, fallback):
+        wrong = np.where(accept, ~C["bp"], ~C[fallback])
+        secs = S["bp"] + np.where(accept, 0.0, S[fallback])
+        return wrong, secs, ~accept
+
+    # ML gate for escalated shots: predict whether relay_fast is enough, else full relay.
+    X = np.concatenate([F.reshape(-1, F.shape[-1]), np.tile([[0], [1]], (n, 1))], axis=1)
+    y = ~C["relay_fast"].reshape(-1) & C["relay"].reshape(-1)   # fast tier would hurt
+    tr = np.repeat(~test, 2) & ~conv.reshape(-1)
+    risk = np.zeros(2 * n)
+    if y[tr].sum() >= 3:
+        model = make_pipeline(StandardScaler(), LogisticRegression(class_weight="balanced", max_iter=2000))
+        model.fit(X[tr], y[tr])
+        risk = model.predict_proba(X)[:, 1]
+    risk = risk.reshape(n, 2)
+    print(f"training shots where relay_fast fails but relay succeeds: {int(y[tr].sum())}\n")
+
+    for label, mask in [("ALL PAIRS", np.ones(n, bool)), ("TEST HALF", test)]:
+        print(f"--- {label} ---")
+        sel = lambda a: a[mask]  # noqa: E731
+        for t in ["bposd", "relay", "relay_fast", "lsd"]:
+            report(f"{t} alone", sel(~C[t]), sel(S[t]))
+        for fb in ["relay", "relay_fast", "lsd"]:
+            w, s, e = cascade(conv, fb)
+            report(f"BP-80 conv-gate -> {fb}", sel(w), sel(s), sel(e))
+        w, s, e = cascade(conv & (corr_wt <= 4), "relay")
+        report("gate + weight<=4 rule -> relay", sel(w), sel(s), sel(e))
+        # 3-tier: converged -> accept; else ML picks relay_fast or relay.
+        for thr in (0.5, 0.2):
+            heavy = ~conv & (risk >= thr)
+            fast = ~conv & ~heavy
+            wrong = np.where(conv, ~C["bp"], np.where(fast, ~C["relay_fast"], ~C["relay"]))
+            secs = S["bp"] + np.where(fast, S["relay_fast"], 0) + np.where(heavy, S["relay"], 0)
+            report(f"3-tier ML (thr {thr}) heavy {sel(heavy).mean():.0%}", sel(wrong), sel(secs), sel(~conv))
+        oracle_fast = ~conv & C["relay_fast"]
+        wrong = np.where(conv, ~C["bp"], np.where(oracle_fast, False, ~C["relay"]))
+        secs = S["bp"] + np.where(oracle_fast, S["relay_fast"], np.where(conv, 0, S["relay"]))
+        report("3-tier ORACLE router", sel(wrong), sel(secs), sel(~conv))
+        print()
+
+
+if __name__ == "__main__":
+    main(sys.argv[1])
+"""Confidence-based escalation: fast Relay-BP first, a learned gate decides whether to also run full Relay-BP.
+
+  python experiments/escalate.py data/v2_p0.004.npz [more files...]
+
+Policy per shot: run relay_fast (its first leg is an 80-iteration BP, so easy shots stop there).
+A logistic-regression gate on its diagnostics predicts P(relay_fast is wrong). Above the threshold
+the shot is escalated to full Relay-BP, whose answer replaces it; the time is relay_fast + relay.
+
+Pairs are split 50 / 25 / 25 into train / validation / test. The threshold is chosen on validation as
+the fastest one whose pair-failure count is within `--slack` of Relay-BP alone; test numbers are reported.
+"""
+import argparse
+import json
+
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
+CYCLES = 12
+GATE_FEATURES = ["rf_success", "rf_iters", "rf_weight", "rf_cost", "rf_min_abs_post", "rf_n_post_lt1",
+                 "syndrome_wt"]
+
+
+def per_cycle(fail):
+    return 1 - (1 - fail.mean()) ** (1 / CYCLES)
+
+
+def by_pair(a, basis):
+    return np.stack([a[basis == 0], a[basis == 1]], axis=1)
+
+
+def summary(wrong, secs):
+    fail = wrong.any(axis=1)
+    ms = secs.sum(axis=1) * 1e3
+    return dict(fails=int(fail.sum()), n=len(fail), ler=per_cycle(fail), mean_ms=ms.mean(),
+                p50_ms=float(np.median(ms)), p99_ms=float(np.percentile(ms, 99)))
+
+
+def line(name, s, extra=""):
+    return (f"{name:30s} fails {s['fails']:4d}/{s['n']}  LER/cycle {s['ler']:.2e}  mean {s['mean_ms']:7.1f} ms  "
+            f"p50 {s['p50_ms']:6.1f}  p99 {s['p99_ms']:6.0f}{extra}")
+
+
+def analyse(path, slack):
+    d = np.load(path, allow_pickle=True)
+    tiers, names, basis = list(d["tiers"]), list(d["feature_names"]), d["basis"]
+    C = {t: by_pair(d["correct"][:, i], basis) for i, t in enumerate(tiers)}
+    S = {t: by_pair(d["seconds"][:, i], basis) for i, t in enumerate(tiers)}
+    F = np.stack([d["features"][basis == 0], d["features"][basis == 1]], axis=1)
+    n = F.shape[0]
+    X = np.concatenate([F[..., [names.index(f) for f in GATE_FEATURES]],
+                        np.broadcast_to(np.array([0.0, 1.0])[None, :, None], (n, 2, 1))], axis=2)
+    split = np.arange(n) * 4 // n            # 0,1 train; 2 validation; 3 test
+    train, val, test = split <= 1, split == 2, split == 3
+
+    y = ~C["relay_fast"]
+    model = make_pipeline(StandardScaler(), LogisticRegression(class_weight="balanced", C=0.5, max_iter=5000))
+    model.fit(X[train].reshape(-1, X.shape[-1]), y[train].reshape(-1))
+    risk = model.predict_proba(X.reshape(-1, X.shape[-1]))[:, 1].reshape(n, 2)
+
+    def policy(escalate):
+        wrong = np.where(escalate, ~C["relay"], ~C["relay_fast"])
+        secs = S["relay_fast"] + np.where(escalate, S["relay"], 0.0)
+        return wrong, secs
+
+    thresholds = np.r_[0.0, np.quantile(risk[train], np.linspace(0.5, 0.999, 60)), 1.01]
+    curve, target = [], (~C["relay"][val]).any(axis=1).sum() + slack
+    for thr in thresholds:
+        w, s = policy(risk >= thr)
+        curve.append(dict(thr=float(thr), val=summary(w[val], s[val]), test=summary(w[test], s[test]),
+                          escalated=float((risk[test] >= thr).mean())))
+    ok = [c for c in curve if c["val"]["fails"] <= target]
+    chosen = min(ok, key=lambda c: c["val"]["mean_ms"])
+
+    # Gemini's deterministic alternative: escalate unless it succeeded within K iterations and cost <= W.
+    succ = F[..., names.index("rf_success")] == 1
+    iters, cost = F[..., names.index("rf_iters")], F[..., names.index("rf_cost")]
+    grid = []
+    for K in np.unique(np.quantile(iters[train & succ], np.linspace(0.5, 1, 11))):
+        for W in np.quantile(cost[train], np.linspace(0.5, 1, 11)):
+            w, s = policy(~succ | (iters > K) | (cost > W))
+            grid.append(dict(K=float(K), W=float(W), val=summary(w[val], s[val]), test=summary(w[test], s[test])))
+    grid_ok = [g for g in grid if g["val"]["fails"] <= target]
+    det_rule = min(grid_ok, key=lambda g: g["val"]["mean_ms"])
+
+    oracle_w, oracle_s = policy(y & C["relay"])            # escalate exactly the shots relay would fix
+    rule_w, rule_s = policy(F[..., names.index("rf_success")] == 0)
+    p = float(d["p"])
+    out = {"p": p, "relay": summary(~C["relay"][test], S["relay"][test]),
+           "bposd": summary(~C["bposd"][test], S["bposd"][test]),
+           "relay_fast": summary(~C["relay_fast"][test], S["relay_fast"][test]),
+           "rule": summary(rule_w[test], rule_s[test]), "oracle": summary(oracle_w[test], oracle_s[test]),
+           "ml": chosen["test"], "ml_thr": chosen["thr"], "ml_escalated": chosen["escalated"],
+           "det_rule": det_rule["test"], "det_rule_KW": [det_rule["K"], det_rule["W"]],
+           "curve": [dict(thr=c["thr"], escalated=c["escalated"], **c["test"]) for c in curve]}
+
+    print(f"\n{path}  p={p}  test pairs={test.sum()}  (gate trained on {train.sum()} pairs)")
+    print(line("BP-OSD (kit)", out["bposd"]))
+    print(line("Relay-BP (kit)", out["relay"]))
+    print(line("Relay-fast alone", out["relay_fast"]))
+    print(line("rule: escalate if no solution", out["rule"]))
+    print(line("ML gate", out["ml"], f"  thr {chosen['thr']:.3f} escalated {chosen['escalated']:.1%}"))
+    print(line("rule: iters<=K & cost<=W", out["det_rule"], f"  K={det_rule['K']:.0f} W={det_rule['W']:.0f}"))
+    print(line("oracle gate", out["oracle"]))
+    return out
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("files", nargs="+")
+    ap.add_argument("--slack", type=int, default=0, help="extra validation pair failures allowed vs Relay-BP")
+    ap.add_argument("--json", default="results/escalate.json")
+    args = ap.parse_args()
+    results = [analyse(f, args.slack) for f in args.files]
+    import os
+    os.makedirs(os.path.dirname(args.json), exist_ok=True)
+    with open(args.json, "w") as fh:
+        json.dump(results, fh, indent=1)
+    print(f"\nwrote {args.json}")
+
+
+if __name__ == "__main__":
+    main()
+
+codex
+The code reveals two evaluation issues: `analyze.py` would use Relay-Fast diagnostics without charging for that run when given the new data format, and `escalate.py` has a mask-shape bug. I’ll flag both and distinguish the measured gains from Gemini’s untested latency and reliability claims.
+exec
+/bin/zsh -lc 'git status --short; if [ -f discussion/02_gpt.md ]; then cat discussion/02_gpt.md; fi' in /Users/fervel/hack/heisenbugsqc
+ succeeded in 10ms:
+?? data/
+?? discussion/
+?? experiments/
+?? kit/
+?? results_p0.004.txt
+
+apply patch
+patch: completed
+/Users/fervel/hack/heisenbugsqc/discussion/02_gpt.md
+diff --git a/discussion/02_gpt.md b/discussion/02_gpt.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..e96a9cb3d3446cd9c602b53a6f25d1662cbac347
+--- /dev/null
++++ b/discussion/02_gpt.md
+@@ -0,0 +1,19 @@
++# GPT — round 2
++
++1. **Mostly agree: the opportunity is selective escalation on hard shots.** BP→Relay saves only 4.5% mean latency; the ML .5 policy saves 37%, with four additional observed pair failures. That is a promising tradeoff, not demonstrated matched reliability. Report paired harmful substitutions and rescues, with uncertainty on excess failure probability; identical failure counts need not mean identical failed pairs. The truth-assisted oracle demonstrates complementarity, not deployable performance or a strict latency optimum.
++
++   Two corrections: LSD is **not dominated** by Relay-Fast: its mean/p99 are 41/158 ms versus 53/728 ms, albeit with much worse LER. Drop it for the near-Relay accuracy objective, not because it is slower. Also, 0/4923 accepted-BP failures does not establish “zero leakage”; the approximate one-sided 95% binomial upper bound is 0.061% per accepted decode, not per cycle.
++
++   Code audit: current `analyze.py` feeds **all** saved features into direct routing. With the new `rf_*` columns, that uses Relay-Fast outputs without charging its execution on heavy shots. Restrict direct routing to BP features; verify which schema produced the quoted table. Feature extraction/inference are also outside recorded decoder times. Ten-worker, fixed-order timings are contention-affected service measurements, not isolated runtime or queue latency.
++
++2. **Next hour: Relay-Fast→full Relay, with no separate BP pass initially.** Its existing initial BP work makes the extra tier questionable; retain BP→Relay as a baseline. Use saved diagnostics; no new expensive experiment is needed while collection runs.
++
++   Features: success plus explicit syndrome consistency, iterations, prior-weighted correction cost, correction weight, syndrome weight, posterior-confidence summaries, basis, and p if pooling noise levels. Verify what `iterations` and `posterior_ratios` actually represent; iterations are not automatically perturbation legs. Mandatory fallback on invalid candidates. Compare success-only escalation, a small iterations/cost threshold grid, and regularized logistic regression. Balanced-class logistic scores are not calibrated failure probabilities.
++
++   Keep pair-level train/validation/test splits; choose thresholds only on validation under a predeclared excess-LER allowance, then evaluate once. Validation count parity alone is not noninferiority. Charge `T_fast + I(escalate)*T_full` plus diagnostics/gating; measure conditional costs rather than using unconditional medians.
++
++   Before running `escalate.py`, fix `iters[train & succ]` to `iters[train[:, None] & succ]`: the existing masks have incompatible shapes. Handle empty successful subsets/feasible grids and single-class training. Its ML policy currently lacks mandatory unsuccessful-output escalation. Keep its exported test threshold curve descriptive, never a selection set.
++
++3. **Pitch measured results, with the cascade explicitly pending.** “At p=0.004, selective routing reduced mean pair decode time from 266 to 167 ms; failures increased from 19 to 23/2000. Confidence-based escalation is the next test.” Plot LER versus mean latency and p99, with paired uncertainty, standalone baselines, validation-selected policies, and clearly labeled oracle references. Extend across all three p values before generalizing.
++
++   **Gemini:** agree on withdrawing weight≤4 and testing simple thresholds. But a 12-ms unconditional median cannot price selected hard-shot overhead; the claimed 11% fallback, 140-ms matched-LER result, and tail protection are unmeasured. The current ML p99 remains 3.78 seconds.
+
+exec
+/bin/zsh -lc 'wc -w discussion/02_gpt.md; cat discussion/02_gpt.md' in /Users/fervel/hack/heisenbugsqc
+ succeeded in 38ms:
+     477 discussion/02_gpt.md
+# GPT — round 2
+
+1. **Mostly agree: the opportunity is selective escalation on hard shots.** BP→Relay saves only 4.5% mean latency; the ML .5 policy saves 37%, with four additional observed pair failures. That is a promising tradeoff, not demonstrated matched reliability. Report paired harmful substitutions and rescues, with uncertainty on excess failure probability; identical failure counts need not mean identical failed pairs. The truth-assisted oracle demonstrates complementarity, not deployable performance or a strict latency optimum.
+
+   Two corrections: LSD is **not dominated** by Relay-Fast: its mean/p99 are 41/158 ms versus 53/728 ms, albeit with much worse LER. Drop it for the near-Relay accuracy objective, not because it is slower. Also, 0/4923 accepted-BP failures does not establish “zero leakage”; the approximate one-sided 95% binomial upper bound is 0.061% per accepted decode, not per cycle.
+
+   Code audit: current `analyze.py` feeds **all** saved features into direct routing. With the new `rf_*` columns, that uses Relay-Fast outputs without charging its execution on heavy shots. Restrict direct routing to BP features; verify which schema produced the quoted table. Feature extraction/inference are also outside recorded decoder times. Ten-worker, fixed-order timings are contention-affected service measurements, not isolated runtime or queue latency.
+
+2. **Next hour: Relay-Fast→full Relay, with no separate BP pass initially.** Its existing initial BP work makes the extra tier questionable; retain BP→Relay as a baseline. Use saved diagnostics; no new expensive experiment is needed while collection runs.
+
+   Features: success plus explicit syndrome consistency, iterations, prior-weighted correction cost, correction weight, syndrome weight, posterior-confidence summaries, basis, and p if pooling noise levels. Verify what `iterations` and `posterior_ratios` actually represent; iterations are not automatically perturbation legs. Mandatory fallback on invalid candidates. Compare success-only escalation, a small iterations/cost threshold grid, and regularized logistic regression. Balanced-class logistic scores are not calibrated failure probabilities.
+
+   Keep pair-level train/validation/test splits; choose thresholds only on validation under a predeclared excess-LER allowance, then evaluate once. Validation count parity alone is not noninferiority. Charge `T_fast + I(escalate)*T_full` plus diagnostics/gating; measure conditional costs rather than using unconditional medians.
+
+   Before running `escalate.py`, fix `iters[train & succ]` to `iters[train[:, None] & succ]`: the existing masks have incompatible shapes. Handle empty successful subsets/feasible grids and single-class training. Its ML policy currently lacks mandatory unsuccessful-output escalation. Keep its exported test threshold curve descriptive, never a selection set.
+
+3. **Pitch measured results, with the cascade explicitly pending.** “At p=0.004, selective routing reduced mean pair decode time from 266 to 167 ms; failures increased from 19 to 23/2000. Confidence-based escalation is the next test.” Plot LER versus mean latency and p99, with paired uncertainty, standalone baselines, validation-selected policies, and clearly labeled oracle references. Extend across all three p values before generalizing.
+
+   **Gemini:** agree on withdrawing weight≤4 and testing simple thresholds. But a 12-ms unconditional median cannot price selected hard-shot overhead; the claimed 11% fallback, 140-ms matched-LER result, and tail protection are unmeasured. The current ML p99 remains 3.78 seconds.
+
+apply patch
+patch: completed
+/Users/fervel/hack/heisenbugsqc/discussion/02_gpt.md
+diff --git a/discussion/02_gpt.md b/discussion/02_gpt.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..36894ede837e6518c8f958a2c8d70b86896b13bd
+--- /dev/null
++++ b/discussion/02_gpt.md
+@@ -0,0 +1,19 @@
++# GPT — round 2
++
++1. **Mostly agree: the opportunity is selective escalation on hard shots.** BP→Relay saves only 4.5% mean latency; the ML .5 policy saves 37%, with four additional observed pair failures. That is a promising tradeoff, not demonstrated matched reliability. Report paired harmful substitutions and rescues, with uncertainty on excess failure probability; identical failure counts need not mean identical failed pairs. The truth-assisted oracle demonstrates complementarity, not deployable performance or a strict latency optimum.
++
++   Two corrections: LSD is **not dominated** by Relay-Fast: its mean/p99 are 41/158 ms versus 53/728 ms, albeit with much worse LER. Drop it for the near-Relay accuracy objective, not because it is slower. Also, 0/4923 accepted-BP failures does not establish “zero leakage”; the approximate one-sided 95% binomial upper bound is 0.061% per accepted decode, not per cycle.
++
++   Code audit: current `analyze.py` feeds **all** saved features into direct routing. With the new `rf_*` columns, that uses Relay-Fast outputs without charging its execution on heavy shots. Restrict direct routing to BP features; verify which schema produced the quoted table. Feature extraction/inference are also outside recorded decoder times. Ten-worker, fixed-order timings are contention-affected service measurements, not isolated runtime or queue latency.
++
++2. **Next hour: Relay-Fast→full Relay, with no separate BP pass initially.** Its existing initial BP work makes the extra tier questionable; retain BP→Relay as a baseline. Use saved diagnostics; no new expensive experiment is needed while collection runs.
++
++   Features: success plus explicit syndrome consistency, iterations, prior-weighted correction cost, correction weight, syndrome weight, posterior-confidence summaries, basis, and p if pooling noise levels. Verify what `iterations` and `posterior_ratios` actually represent; iterations are not automatically perturbation legs. Mandatory fallback on invalid candidates. Compare success-only escalation, a small iterations/cost threshold grid, and regularized logistic regression. Balanced-class logistic scores are not calibrated failure probabilities.
++
++   Keep pair-level train/validation/test splits; choose thresholds only on validation under a predeclared excess-LER allowance, then evaluate once. Validation count parity alone is not noninferiority. Charge `T_fast + I(escalate)*T_full` plus diagnostics/gating; measure conditional costs rather than using unconditional medians.
++
++   Before running `escalate.py`, fix `iters[train & succ]` to `iters[train[:, None] & succ]`: the existing masks have incompatible shapes. Handle empty successful subsets/feasible grids and single-class training. Its ML policy currently lacks mandatory unsuccessful-output escalation. Keep its exported test threshold curve descriptive, never a selection set.
++
++3. **Pitch measured results, with the cascade explicitly pending.** Subject to confirming the table used BP-only routing features: “At p=0.004, selective routing reduced mean pair decode time from 266 to 167 ms; failures increased from 19 to 23/2000. Confidence-based escalation is the next test.” Plot LER versus mean latency and p99, with paired uncertainty, standalone baselines, validation-selected policies, and clearly labeled oracle references. Extend across all three p values before generalizing.
++
++   **Gemini:** agree on withdrawing weight≤4 and testing simple thresholds. But a 12-ms unconditional median cannot price selected hard-shot overhead; the claimed 11% fallback, 140-ms matched-LER result, and tail protection are unmeasured. The current ML p99 remains 3.78 seconds.
+
+codex
+Wrote [discussion/02_gpt.md](/Users/fervel/hack/heisenbugsqc/discussion/02_gpt.md), answering all three questions and responding to Gemini. Flagged evaluation issues and the escalation mask bug.
+
+No changes to `kit/` or `experiments/`; no computations run.
+tokens used
+19,340
+Wrote [discussion/02_gpt.md](/Users/fervel/hack/heisenbugsqc/discussion/02_gpt.md), answering all three questions and responding to Gemini. Flagged evaluation issues and the escalation mask bug.
+
+No changes to `kit/` or `experiments/`; no computations run.
