@@ -1,0 +1,41 @@
+[
+ {
+  "p": 0.003,
+  "pairs": 100000,
+  "K": 10,
+  "referee": "R5",
+  "gate_fails": 86,
+  "relay_fails": 74,
+  "both": 49,
+  "gate_only": 37,
+  "relay_only": 25,
+  "fail_ratio_upper": 1.4637107969863614,
+  "gate_ler": 7.169493080860789e-05,
+  "relay_ler": 6.168759183811101e-05,
+  "gate_mean_ms": 30.47004897581377,
+  "relay_mean_ms": 77.17765382001242,
+  "latency": {
+   "mean": {
+    "ratio": 0.39480403287295557,
+    "upper95": 0.40649841794497377
+   },
+   "p90": {
+    "ratio": 0.1635354087039781,
+    "upper95": 0.16544732478107926
+   },
+   "p99": {
+    "ratio": 0.7302785310116945,
+    "upper95": 0.8007256259029824
+   }
+  },
+  "paths": {
+   "first_leg": 0.9653,
+   "agreed": 0.0288,
+   "no_solution": 0.0035,
+   "disagreed": 0.0023
+  },
+  "accuracy": "INCONCLUSIVE",
+  "latency_verdict": "PASS",
+  "exploratory": false
+ }
+]

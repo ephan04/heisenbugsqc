@@ -6,7 +6,7 @@ A hierarchical decoder for the [[144,12,12]] Gross code, built on the kit's Rela
 - `experiments/gate.py`: the gate as a decoder. A fast Relay-BP run with seed 0 is accepted if it solves the shot in its first leg. A second seed must agree otherwise. Shots with no solution or a disagreement go to a referee (the kit's Relay-BP).
 - `experiments/adaptive_*.py`: stage 1 discovery, settings selection, stage 2 confirmation, and the verdicts report.
 - `results/`: outputs (`adaptive_confirm.txt` holds the confirmed verdicts).
-- `discussion/`: the Claude / GPT / Gemini discussion rounds and pre-registrations. Start with `13_noise_adaptive_conclusion.md`.
+- `discussion/`: the Claude / GPT / Gemini discussion rounds and pre-registrations. Start with `13_noise_adaptive_conclusion.md`, then `16_ml_bposd_conclusion.md`.
 
 Setup: `uv venv --python 3.12 .venv && uv pip install -r challenge-1-ml-decoder-kit/requirements.txt matplotlib`
 

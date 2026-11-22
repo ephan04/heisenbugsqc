@@ -1,0 +1,54 @@
+
+p = 0.003: 10000 pairs (MLP subset: first 3333)
+  all shots
+    decoder               fails  LER/cycle  mean ms  p90 ms  p99 ms
+    BP-OSD                   55   4.59e-04       94     312     565
+    Relay-BP                  5   4.17e-05       57      83     404
+    gate (alarm count)        7   5.84e-05       22      13     307
+    gate (alarm count) vs Relay-BP: only gate 3, only Relay-BP 1, ratio upper 1.99 -> accuracy FAIL;  time mean 0.38 (95% upper 0.42)  p90 0.16 (95% upper 0.16)  p99 0.76 (95% upper 0.99) -> latency PASS
+    gate (alarm count) vs BP-OSD: 0.13x the failures, 0.23x mean time, 0.54x p99 time
+  MLP subset (exploratory)
+    decoder               fails  LER/cycle  mean ms  p90 ms  p99 ms
+    BP-OSD                   20   5.01e-04       94     310     561
+    Relay-BP                  2   5.00e-05       59      83     423
+    gate (alarm count)        3   7.50e-05       24      14     392
+    gate (MLP)                3   7.50e-05       24      14     383
+    gate (MLP) vs Relay-BP: only gate 2, only Relay-BP 1, ratio upper 3.96 -> accuracy FAIL;  time mean 0.41 (95% upper 0.46)  p90 0.17 (95% upper 0.18)  p99 0.90 (95% upper 1.16) -> latency FAIL
+    settings chosen, alarm count: {'K=5 R1': 0.0, 'K=5 R2': 0.0, 'K=10 R5': 1.0};  MLP (subset): {'K=5 R1': 0.0, 'K=5 R2': 0.0, 'K=10 R5': 1.0};  the two differ on 0.0% of subset pairs
+    estimate error (mean |p_hat - p| / p): alarm count 2.9%, MLP 2.6%;  estimator cost 0.3 us/pair (batched)
+
+p = 0.004: 6000 pairs (MLP subset: first 2000)
+  all shots
+    decoder               fails  LER/cycle  mean ms  p90 ms  p99 ms
+    BP-OSD                  336   4.79e-03      282     649     849
+    Relay-BP                 55   7.67e-04      262     436    4279
+    gate (alarm count)       53   7.39e-04      191     236    4415
+    gate (alarm count) vs Relay-BP: only gate 19, only Relay-BP 21, ratio upper 1.29 -> accuracy INCONCLUSIVE;  time mean 0.73 (95% upper 0.76)  p90 0.54 (95% upper 0.63)  p99 1.03 (95% upper 1.09) -> latency FAIL
+    gate (alarm count) vs BP-OSD: 0.16x the failures, 0.68x mean time, 5.20x p99 time
+  MLP subset (exploratory)
+    decoder               fails  LER/cycle  mean ms  p90 ms  p99 ms
+    BP-OSD                  118   5.05e-03      274     637     865
+    Relay-BP                 21   8.79e-04      278     447    4021
+    gate (alarm count)       15   6.27e-04      190     236    4300
+    gate (MLP)               15   6.27e-04      190     237    4081
+    gate (MLP) vs Relay-BP: only gate 3, only Relay-BP 9, ratio upper 1.19 -> accuracy PASS;  time mean 0.68 (95% upper 0.73)  p90 0.53 (95% upper 0.64)  p99 1.01 (95% upper 1.08) -> latency FAIL
+    settings chosen, alarm count: {'K=5 R1': 0.0, 'K=5 R2': 0.0, 'K=10 R5': 1.0};  MLP (subset): {'K=5 R1': 0.0, 'K=5 R2': 0.0, 'K=10 R5': 1.0};  the two differ on 0.0% of subset pairs
+    estimate error (mean |p_hat - p| / p): alarm count 2.4%, MLP 2.5%;  estimator cost 0.4 us/pair (batched)
+
+p = 0.005: 3000 pairs (MLP subset: first 1000)
+  all shots
+    decoder               fails  LER/cycle  mean ms  p90 ms  p99 ms
+    BP-OSD                  726   2.28e-02      578     909    1138
+    Relay-BP                262   7.59e-03     1335    5038    7835
+    gate (alarm count)      262   7.59e-03     1164    5108    7603
+    gate (alarm count) vs Relay-BP: only gate 61, only Relay-BP 61, ratio upper 1.11 -> accuracy PASS;  time mean 0.87 (95% upper 0.89)  p90 1.01 (95% upper 1.02)  p99 0.97 (95% upper 1.05) -> latency FAIL
+    gate (alarm count) vs BP-OSD: 0.36x the failures, 2.01x mean time, 6.68x p99 time
+  MLP subset (exploratory)
+    decoder               fails  LER/cycle  mean ms  p90 ms  p99 ms
+    BP-OSD                  217   2.02e-02      598     915    1187
+    Relay-BP                 79   6.83e-03     1388    5045    8873
+    gate (alarm count)       80   6.92e-03     1216    5123    8002
+    gate (MLP)               80   6.92e-03     1222    5117    8308
+    gate (MLP) vs Relay-BP: only gate 18, only Relay-BP 17, ratio upper 1.21 -> accuracy INCONCLUSIVE;  time mean 0.88 (95% upper 0.92)  p90 1.01 (95% upper 1.03)  p99 0.94 (95% upper 1.09) -> latency FAIL
+    settings chosen, alarm count: {'K=5 R1': 0.0, 'K=5 R2': 0.035333333333333335, 'K=10 R5': 0.9646666666666667};  MLP (subset): {'K=5 R1': 0.0, 'K=5 R2': 0.013, 'K=10 R5': 0.987};  the two differ on 2.7% of subset pairs
+    estimate error (mean |p_hat - p| / p): alarm count 2.0%, MLP 2.1%;  estimator cost 0.6 us/pair (batched)

@@ -1,0 +1,102 @@
+training data: 61500 pair-shots at 41 noise levels in 104 s
+  trained ridge in 0.0 s
+  trained mlp in 1.5 s
+
+relative error of the estimated p (mean |p_hat - p| / p), fresh shots, window = last W pairs
+   true p method      W=1     W=10    W=100
+   0.0030  count     9.3%     3.0%     0.8%
+   0.0030  ridge     6.9%     2.3%     1.1%
+   0.0030    mlp     8.4%     2.7%     0.9%
+   0.0040  count     7.9%     2.6%     0.8%
+   0.0040  ridge     7.6%     3.9%     3.7%
+   0.0040    mlp     8.3%     2.7%     0.8%
+   0.0045  count     7.7%     2.4%     0.8%
+   0.0045  ridge     8.1%     4.1%     3.8%
+   0.0045    mlp     7.8%     2.5%     1.0%
+   0.0050  count     7.3%     2.2%     0.6%
+   0.0050  ridge     8.2%     4.2%     3.9%
+   0.0050    mlp     6.8%     2.3%     0.8%
+   0.0055  count     7.1%     2.2%     0.7%
+   0.0055  ridge     8.1%     3.3%     2.8%
+   0.0055    mlp     6.1%     2.2%     1.4%
+   0.0060  count     6.4%     2.1%     0.8%
+   0.0060  ridge     7.9%     2.7%     1.6%
+   0.0060    mlp     5.9%     3.0%     2.9%
+  count: 1 us per estimate (python, one shot)
+  ridge: 61 us per estimate (python, one shot)
+  mlp: 71 us per estimate (python, one shot)
+
+routing replay on discovery shots: failed pairs and mean time vs the kit's Relay-BP (R5)
+  'oracle' = settings for the true p; others route each pair by its estimated p
+
+  p=0.003  Relay-BP 12 failed pairs of 10000, mean 61 ms
+             oracle: fails   13 (1.08x)  time 0.40x  p99 0.75x  right setting 100%
+          count W=1: fails   13 (1.08x)  time 0.40x  p99 0.75x  right setting 100%
+         count W=10: fails   13 (1.08x)  time 0.40x  p99 0.75x  right setting 100%
+        count W=100: fails   13 (1.08x)  time 0.40x  p99 0.75x  right setting 100%
+            mlp W=1: fails   13 (1.08x)  time 0.40x  p99 0.75x  right setting 100%
+           mlp W=10: fails   13 (1.08x)  time 0.40x  p99 0.75x  right setting 100%
+          mlp W=100: fails   13 (1.08x)  time 0.40x  p99 0.75x  right setting 100%
+       mlp W=1 +10%: fails   13 (1.08x)  time 0.40x  p99 0.75x  right setting 100%
+     count W=10 +5%: fails   13 (1.08x)  time 0.40x  p99 0.75x  right setting 100%
+
+  p=0.004  Relay-BP 61 failed pairs of 6000, mean 249 ms
+             oracle: fails   60 (0.98x)  time 0.71x  p99 1.03x  right setting 100%
+          count W=1: fails   60 (0.98x)  time 0.71x  p99 1.03x  right setting 100%
+         count W=10: fails   60 (0.98x)  time 0.71x  p99 1.03x  right setting 100%
+        count W=100: fails   60 (0.98x)  time 0.71x  p99 1.03x  right setting 100%
+            mlp W=1: fails   60 (0.98x)  time 0.71x  p99 1.03x  right setting 100%
+           mlp W=10: fails   60 (0.98x)  time 0.71x  p99 1.03x  right setting 100%
+          mlp W=100: fails   60 (0.98x)  time 0.71x  p99 1.03x  right setting 100%
+       mlp W=1 +10%: fails   63 (1.03x)  time 0.69x  p99 1.02x  right setting 96%
+     count W=10 +5%: fails   60 (0.98x)  time 0.71x  p99 1.03x  right setting 100%
+
+  p=0.0045  Relay-BP 80 failed pairs of 3000, mean 514 ms
+             oracle: fails   83 (1.04x)  time 0.83x  p99 1.02x  right setting 100%
+          count W=1: fails   86 (1.07x)  time 0.81x  p99 1.02x  right setting 96%
+         count W=10: fails   83 (1.04x)  time 0.83x  p99 1.02x  right setting 100%
+        count W=100: fails   83 (1.04x)  time 0.83x  p99 1.02x  right setting 100%
+            mlp W=1: fails   85 (1.06x)  time 0.81x  p99 1.02x  right setting 95%
+           mlp W=10: fails   83 (1.04x)  time 0.83x  p99 1.02x  right setting 100%
+          mlp W=100: fails   83 (1.04x)  time 0.83x  p99 1.02x  right setting 100%
+       mlp W=1 +10%: fails   94 (1.18x)  time 0.69x  p99 1.01x  right setting 70%
+     count W=10 +5%: fails   83 (1.04x)  time 0.83x  p99 1.02x  right setting 100%
+
+  p=0.005  Relay-BP 241 failed pairs of 3000, mean 1250 ms
+             oracle: fails  240 (1.00x)  time 0.90x  p99 1.00x  right setting 100%
+          count W=1: fails  246 (1.02x)  time 0.75x  p99 0.86x  right setting 70%
+         count W=10: fails  235 (0.98x)  time 0.89x  p99 1.00x  right setting 96%
+        count W=100: fails  240 (1.00x)  time 0.90x  p99 1.00x  right setting 100%
+            mlp W=1: fails  245 (1.02x)  time 0.77x  p99 0.86x  right setting 72%
+           mlp W=10: fails  236 (0.98x)  time 0.89x  p99 1.00x  right setting 97%
+          mlp W=100: fails  240 (1.00x)  time 0.90x  p99 1.00x  right setting 100%
+       mlp W=1 +10%: fails  268 (1.11x)  time 0.61x  p99 0.81x  right setting 30%
+     count W=10 +5%: fails  248 (1.03x)  time 0.75x  p99 0.92x  right setting 51%
+
+  p=0.0055  Relay-BP 286 failed pairs of 1500, mean 2362 ms
+             oracle: fails  297 (1.04x)  time 0.71x  p99 0.83x  right setting 100%
+          count W=1: fails  304 (1.06x)  time 0.69x  p99 0.78x  right setting 37%
+         count W=10: fails  298 (1.04x)  time 0.71x  p99 0.83x  right setting 87%
+        count W=100: fails  297 (1.04x)  time 0.71x  p99 0.83x  right setting 100%
+            mlp W=1: fails  298 (1.04x)  time 0.70x  p99 0.83x  right setting 46%
+           mlp W=10: fails  296 (1.03x)  time 0.73x  p99 0.83x  right setting 89%
+          mlp W=100: fails  297 (1.04x)  time 0.71x  p99 0.83x  right setting 100%
+       mlp W=1 +10%: fails  319 (1.12x)  time 0.58x  p99 0.70x  right setting 24%
+     count W=10 +5%: fails  314 (1.10x)  time 0.61x  p99 0.83x  right setting 40%
+
+  p=0.006  Relay-BP 367 failed pairs of 1000, mean 4037 ms
+             oracle: fails  376 (1.02x)  time 0.60x  p99 0.94x  right setting 100%
+          count W=1: fails  373 (1.02x)  time 0.64x  p99 0.95x  right setting 72%
+         count W=10: fails  374 (1.02x)  time 0.61x  p99 0.94x  right setting 97%
+        count W=100: fails  376 (1.02x)  time 0.60x  p99 0.94x  right setting 100%
+            mlp W=1: fails  373 (1.02x)  time 0.66x  p99 0.98x  right setting 61%
+           mlp W=10: fails  373 (1.02x)  time 0.64x  p99 0.94x  right setting 74%
+          mlp W=100: fails  378 (1.03x)  time 0.61x  p99 0.94x  right setting 97%
+       mlp W=1 +10%: fails  378 (1.03x)  time 0.61x  p99 0.94x  right setting 94%
+     count W=10 +5%: fails  376 (1.02x)  time 0.60x  p99 0.94x  right setting 100%
+
+drift stream: noise changes every 300 pairs, 0.003 -> 0.005 -> 0.004 -> 0.006 -> 0.0045 -> 0.0055 -> 0.003
+       oracle: fails 207 vs Relay-BP 207  time 0.67x  right setting 100%
+   count W=10: fails 203 vs Relay-BP 207  time 0.67x  right setting 95%
+  count W=100: fails 212 vs Relay-BP 207  time 0.73x  right setting 90%
+     mlp W=10: fails 204 vs Relay-BP 207  time 0.70x  right setting 92%

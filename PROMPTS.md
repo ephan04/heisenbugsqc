@@ -37,6 +37,16 @@
 33. `2026-11-22 03:21`: Why is it less accurate for lower noises?
 34. `2026-11-22 03:27`: push to repo
 35. `2026-11-22 03:29`: push everything(everythin), crete a file with all the prompts used in this chate as well
+36. `2026-11-22 03:30`: So if you build the ML model, thats light, we're all good?
+37. `2026-11-22 03:31`: is there any parallel computation that we could offsource to another computer?
+38. `2026-11-22 03:33`: how much time would it take to make the ML
+39. `2026-11-22 03:34`: can you build it and to some quick tests to see if its viable?
+40. `2026-11-22 03:42`: so ML isn't needed. What is left? Just running on the BPOSD?
+41. `2026-11-22 03:45`: if we did the preshot version, would it still be 6 hrs?
+42. `2026-11-22 03:50`: run the alarm counting model on the BPOSD and run the ML-assited model on a subset of BPOSD
+43. `2026-11-22 04:36`: how long will it take to do the lower values of relay bp
+44. `2026-11-22 04:37`: just do 0.003
+45. `2026-11-22 05:04`: push to repo
 
 ## 2. Prompts Claude sent to GPT (codex) and Gemini (agy)
 
