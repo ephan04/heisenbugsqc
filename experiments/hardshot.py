@@ -70,7 +70,7 @@ def headroom():
 
 
 
-# ---------------------------------------------------------------- quick check (discussion/19)
+# ---------------------------------------------------------------- quick check (docs/discussion/19)
 import pickle  # noqa: E402
 import time  # noqa: E402
 

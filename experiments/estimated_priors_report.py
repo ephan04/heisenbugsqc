@@ -1,4 +1,4 @@
-"""Report for estimated_priors.py runs (pre-registered in discussion/27).
+"""Report for estimated_priors.py runs (pre-registered in docs/discussion/27).
 
   python experiments/estimated_priors_report.py data/estprior_p*.npz
 """

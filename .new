@@ -1,9 +1,0 @@
-vim /Users/jaspersun/Downloads/challenge-1-ml-decoder-kit/circuits/README.md 
-cd /Users/jaspersun/Desktop/heisenbugsqc 
-git fetch
-ls
-git pull
-ls
-python
-py
-exit

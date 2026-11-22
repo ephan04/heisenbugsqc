@@ -1,4 +1,4 @@
-"""Report for bposd_compare.py runs (pre-registered in discussion/14).
+"""Report for bposd_compare.py runs (pre-registered in docs/discussion/14).
 
   python experiments/bposd_compare_report.py data/compare_p*.npz
 """

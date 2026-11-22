@@ -2,7 +2,7 @@
 
   python experiments/router_compare.py --p 0.003 --shots 10000 --seed 5030 --out data/router_compare_p0.003.npz
 
-Pre-registered in discussion/25_router_compare_prereg.md.
+Pre-registered in docs/discussion/25_router_compare_prereg.md.
 """
 import argparse
 import sys

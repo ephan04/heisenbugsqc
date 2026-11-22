@@ -1,0 +1,386 @@
+{
+ "hardware": {
+  "machine": "MacBook Air",
+  "chip": "Apple M5",
+  "cores": "10 (4 Super and 6 Efficiency)",
+  "memory_gb": 16.0,
+  "os": "macOS 27.2.1",
+  "python": "3.12.13",
+  "workers": 8,
+  "gpu_used": false,
+  "libraries": {
+   "stim": "1.16.0",
+   "ldpc": "2.4.1",
+   "relay-bp": "0.2.2",
+   "numpy": "2.5.5",
+   "scipy": "1.18.1",
+   "scikit-learn": "1.9.1"
+  },
+  "probe_p0.004_X": {
+   "rss_after_imports_mb": 75.859375,
+   "dem_build_s": 0.7362217089976184,
+   "rss_after_dem_mb": 96.390625,
+   "H_shape": [
+    936,
+    8784
+   ],
+   "H_nnz": 30672,
+   "relay_build_s": 0.006953917007194832,
+   "relay_added_mb": 1.078125,
+   "bposd_build_s": 0.020287417006329633,
+   "bposd_added_mb": 62.28125,
+   "gate_build_s": 0.005447707997518592,
+   "gate_added_mb": 5.53125,
+   "peak_rss_mb": 165.28125
+  }
+ },
+ "rows": [
+  {
+   "p": 0.003,
+   "decoder": "BP-OSD",
+   "source": "ours, same shots",
+   "pairs": 10000,
+   "fails": 55,
+   "ler": 0.00045949279151380473,
+   "mean_ms": 93.7305092984061,
+   "p90_ms": 312.31603389605885,
+   "p99_ms": 564.9273881922275,
+   "pairs_per_s_8w": 85.35107789215908
+  },
+  {
+   "p": 0.003,
+   "decoder": "Relay-BP",
+   "source": "ours, same shots",
+   "pairs": 10000,
+   "fails": 5,
+   "ler": 4.167621832917856e-05,
+   "mean_ms": 57.04710877670004,
+   "p90_ms": 83.26690899702955,
+   "p99_ms": 404.2296582483691,
+   "pairs_per_s_8w": 140.23497722407745
+  },
+  {
+   "p": 0.003,
+   "decoder": "agreement gate",
+   "source": "ours, same shots",
+   "pairs": 10000,
+   "fails": 7,
+   "ler": 5.83520569852336e-05,
+   "mean_ms": 21.944927812017703,
+   "p90_ms": 13.001686599454844,
+   "p99_ms": 306.74649100939877,
+   "pairs_per_s_8w": 364.5489321509164
+  },
+  {
+   "p": 0.003,
+   "decoder": "BP-OSD",
+   "source": "organisers (kit README)",
+   "pairs": 10000,
+   "fails": 56,
+   "ler": 0.00047,
+   "ler_err": 6e-05,
+   "mean_ms": 140
+  },
+  {
+   "p": 0.003,
+   "decoder": "Relay-BP",
+   "source": "organisers (kit README)",
+   "pairs": 10000,
+   "fails": 5,
+   "ler": 4.2e-05,
+   "ler_err": 1.9e-05,
+   "mean_ms": 100
+  },
+  {
+   "p": 0.003,
+   "decoder": "ML router (Emma, t=0.7)",
+   "source": "ours, 10k pairs",
+   "pairs": 10000,
+   "fails": 41,
+   "ler": 0.0003423104021325063,
+   "mean_ms": 60.680626260713325,
+   "p90_ms": 137.3850676034636,
+   "p99_ms": 391.4833522600384
+  },
+  {
+   "p": 0.004,
+   "decoder": "BP-OSD",
+   "source": "ours, same shots",
+   "pairs": 6000,
+   "fails": 336,
+   "ler": 0.004790912859462759,
+   "mean_ms": 281.5147837442807,
+   "p90_ms": 648.6973077968288,
+   "p99_ms": 849.0319592613379,
+   "pairs_per_s_8w": 28.417690515560817
+  },
+  {
+   "p": 0.004,
+   "decoder": "Relay-BP",
+   "source": "ours, same shots",
+   "pairs": 6000,
+   "fails": 55,
+   "ler": 0.0007671172054775077,
+   "mean_ms": 261.8658201099909,
+   "p90_ms": 436.44607080568693,
+   "p99_ms": 4279.363410993321,
+   "pairs_per_s_8w": 30.54999692834971
+  },
+  {
+   "p": 0.004,
+   "decoder": "agreement gate",
+   "source": "ours, same shots",
+   "pairs": 6000,
+   "fails": 53,
+   "ler": 0.0007391082667899118,
+   "mean_ms": 190.72381607382704,
+   "p90_ms": 236.1341877985984,
+   "p99_ms": 4414.740111245631,
+   "pairs_per_s_8w": 41.94546944731481
+  },
+  {
+   "p": 0.004,
+   "decoder": "BP-OSD",
+   "source": "organisers (kit README)",
+   "pairs": 10000,
+   "fails": 522,
+   "ler": 0.0044,
+   "ler_err": 0.0002,
+   "mean_ms": 330
+  },
+  {
+   "p": 0.004,
+   "decoder": "Relay-BP",
+   "source": "organisers (kit README)",
+   "pairs": 10000,
+   "fails": 105,
+   "ler": 0.00087,
+   "ler_err": 9e-05,
+   "mean_ms": 380
+  },
+  {
+   "p": 0.004,
+   "decoder": "ML router (Emma, t=0.7)",
+   "source": "ours, 10k pairs",
+   "pairs": 10000,
+   "fails": 351,
+   "ler": 0.0029731389387525065,
+   "mean_ms": 210.32837375254894,
+   "p90_ms": 428.87163370614877,
+   "p99_ms": 2181.856144917261
+  },
+  {
+   "p": 0.005,
+   "decoder": "BP-OSD",
+   "source": "ours, same shots",
+   "pairs": 3000,
+   "fails": 726,
+   "ler": 0.022824805757083677,
+   "mean_ms": 577.5487697966819,
+   "p90_ms": 908.7571288975595,
+   "p99_ms": 1137.7991459952298,
+   "pairs_per_s_8w": 13.851644083349516
+  },
+  {
+   "p": 0.005,
+   "decoder": "Relay-BP",
+   "source": "ours, same shots",
+   "pairs": 3000,
+   "fails": 262,
+   "ler": 0.0075864566105590114,
+   "mean_ms": 1334.8230347446224,
+   "p90_ms": 5037.591538104607,
+   "p99_ms": 7835.170804342479,
+   "pairs_per_s_8w": 5.9933038251250705
+  },
+  {
+   "p": 0.005,
+   "decoder": "agreement gate",
+   "source": "ours, same shots",
+   "pairs": 3000,
+   "fails": 262,
+   "ler": 0.0075864566105590114,
+   "mean_ms": 1163.6780464146577,
+   "p90_ms": 5107.700725298491,
+   "p99_ms": 7602.919829938472,
+   "pairs_per_s_8w": 6.874753738500392
+  },
+  {
+   "p": 0.005,
+   "decoder": "BP-OSD",
+   "source": "organisers (kit README)",
+   "pairs": 10000,
+   "fails": 2588,
+   "ler": 0.023,
+   "ler_err": 0.0005,
+   "mean_ms": 590
+  },
+  {
+   "p": 0.005,
+   "decoder": "Relay-BP",
+   "source": "organisers (kit README)",
+   "pairs": 10000,
+   "fails": 825,
+   "ler": 0.0069,
+   "ler_err": 0.0002,
+   "mean_ms": 1700
+  },
+  {
+   "p": 0.005,
+   "decoder": "ML router (Emma, t=0.7)",
+   "source": "ours, 10k pairs",
+   "pairs": 10000,
+   "fails": 1413,
+   "ler": 0.012614401404989817,
+   "mean_ms": 836.1668000480101,
+   "p90_ms": 2372.966436893331,
+   "p99_ms": 5399.737462170306
+  },
+  {
+   "p": 0.003,
+   "decoder": "agreement gate",
+   "source": "ours, 100k pairs",
+   "pairs": 100000,
+   "fails": 86,
+   "ler": 7.169493080860789e-05,
+   "mean_ms": 30.47004897581377
+  },
+  {
+   "p": 0.003,
+   "decoder": "Relay-BP",
+   "source": "ours, 100k pairs",
+   "pairs": 100000,
+   "fails": 74,
+   "ler": 6.168759183811101e-05,
+   "mean_ms": 77.17765382001242
+  }
+ ],
+ "gate_verdicts": {
+  "0.003": {
+   "vs_relay": {
+    "only_gate": 3,
+    "only_relay": 1,
+    "both": 4,
+    "ratio_upper": 1.9937434486728893,
+    "accuracy": "FAIL",
+    "latency": {
+     "mean": [
+      0.3846808064877908,
+      0.4209172844488836
+     ],
+     "p90": [
+      0.15614470089094654,
+      0.16179170251801056
+     ],
+     "p99": [
+      0.7588421204386885,
+      0.9943812359752443
+     ]
+    },
+    "latency_verdict": "PASS"
+   },
+   "vs_bposd": {
+    "fail_ratio": 0.12727272727272726,
+    "mean_time_ratio": 0.23412790537766637,
+    "p99_time_ratio": 0.5429839257590081
+   }
+  },
+  "0.004": {
+   "vs_relay": {
+    "only_gate": 19,
+    "only_relay": 21,
+    "both": 34,
+    "ratio_upper": 1.2886837957060928,
+    "accuracy": "INCONCLUSIVE",
+    "latency": {
+     "mean": [
+      0.7283264994023189,
+      0.7613212707907961
+     ],
+     "p90": [
+      0.5410386382049233,
+      0.627272635526948
+     ],
+     "p99": [
+      1.0316347753744255,
+      1.0930542308546698
+     ]
+    },
+    "latency_verdict": "FAIL"
+   },
+   "vs_bposd": {
+    "fail_ratio": 0.15773809523809523,
+    "mean_time_ratio": 0.6774912973915951,
+    "p99_time_ratio": 5.19973372390655
+   }
+  },
+  "0.005": {
+   "vs_relay": {
+    "only_gate": 61,
+    "only_relay": 61,
+    "both": 201,
+    "ratio_upper": 1.1088559349634497,
+    "accuracy": "PASS",
+    "latency": {
+     "mean": [
+      0.8717845108488796,
+      0.8938961686702876
+     ],
+     "p90": [
+      1.0139172036207331,
+      1.0211230207246702
+     ],
+     "p99": [
+      0.9703578926096561,
+      1.049416192975909
+     ]
+    },
+    "latency_verdict": "FAIL"
+   },
+   "vs_bposd": {
+    "fail_ratio": 0.3608815426997245,
+    "mean_time_ratio": 2.0148567658179144,
+    "p99_time_ratio": 6.682128262003764
+   }
+  }
+ },
+ "gate_100k_p0003": {
+  "p": 0.003,
+  "pairs": 100000,
+  "K": 10,
+  "referee": "R5",
+  "gate_fails": 86,
+  "relay_fails": 74,
+  "both": 49,
+  "gate_only": 37,
+  "relay_only": 25,
+  "fail_ratio_upper": 1.4637107969863614,
+  "gate_ler": 7.169493080860789e-05,
+  "relay_ler": 6.168759183811101e-05,
+  "gate_mean_ms": 30.47004897581377,
+  "relay_mean_ms": 77.17765382001242,
+  "latency": {
+   "mean": {
+    "ratio": 0.39480403287295557,
+    "upper95": 0.40649841794497377
+   },
+   "p90": {
+    "ratio": 0.1635354087039781,
+    "upper95": 0.16544732478107926
+   },
+   "p99": {
+    "ratio": 0.7302785310116945,
+    "upper95": 0.8007256259029824
+   }
+  },
+  "paths": {
+   "first_leg": 0.9653,
+   "agreed": 0.0288,
+   "no_solution": 0.0035,
+   "disagreed": 0.0023
+  },
+  "accuracy": "INCONCLUSIVE",
+  "latency_verdict": "PASS",
+  "exploratory": false
+ }
+}

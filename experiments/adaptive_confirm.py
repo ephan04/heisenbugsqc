@@ -3,7 +3,7 @@
   python experiments/adaptive_confirm.py --p 0.005 --shots 3000 --seed 2050 --out data/confirm_p0.005.npz
 
 Both decoders run on every shot in random order per shot. Settings come from
-results/adaptive_selected.json, frozen before this stage (discussion/09_noise_adaptive_prereg.md).
+results/adaptive_selected.json, frozen before this stage (docs/discussion/09_noise_adaptive_prereg.md).
 """
 import argparse
 import sys

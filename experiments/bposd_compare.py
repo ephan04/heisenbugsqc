@@ -2,7 +2,7 @@
 
   python experiments/bposd_compare.py --p 0.004 --shots 6000 --seed 5040 --out data/compare_p0.004.npz
 
-Pre-registered in discussion/14_bposd_compare_prereg.md.
+Pre-registered in docs/discussion/14_bposd_compare_prereg.md.
 """
 import argparse
 import pickle

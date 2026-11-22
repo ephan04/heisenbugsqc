@@ -5,7 +5,7 @@
 Every shot: fast Relay-BP seed 0 (50 restarts) and the baseline referee R5 (kit Relay-BP).
 Shots seed 0 does not solve in its deterministic first leg also get: seed 1 (50 restarts),
 R2 (stop_nconv=2) and R1 (stop_nconv=1, 300 sets). Decoders after seed 0 run in random order.
-Missing entries are marked with success = -1. See discussion/09_noise_adaptive_prereg.md.
+Missing entries are marked with success = -1. See docs/discussion/09_noise_adaptive_prereg.md.
 """
 import argparse
 import sys

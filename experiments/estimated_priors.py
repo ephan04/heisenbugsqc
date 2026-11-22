@@ -2,7 +2,7 @@
 
   python experiments/estimated_priors.py data/compare_p0.003.npz --out data/estprior_p0.003.npz
 
-Pre-registered in discussion/27_estimated_priors_prereg.md.
+Pre-registered in docs/discussion/27_estimated_priors_prereg.md.
 """
 import argparse
 import sys

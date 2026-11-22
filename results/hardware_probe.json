@@ -1,0 +1,17 @@
+{
+ "rss_after_imports_mb": 75.859375,
+ "dem_build_s": 0.7362217089976184,
+ "rss_after_dem_mb": 96.390625,
+ "H_shape": [
+  936,
+  8784
+ ],
+ "H_nnz": 30672,
+ "relay_build_s": 0.006953917007194832,
+ "relay_added_mb": 1.078125,
+ "bposd_build_s": 0.020287417006329633,
+ "bposd_added_mb": 62.28125,
+ "gate_build_s": 0.005447707997518592,
+ "gate_added_mb": 5.53125,
+ "peak_rss_mb": 165.28125
+}

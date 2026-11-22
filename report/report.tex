@@ -114,7 +114,7 @@ Failures are rare (tens per 10,000 shots at $p=0.003$), so small runs mislead ea
   \item \textbf{Same shots for every decoder.} Every decoder sees exactly the same sampled syndromes, and the decoder order
         is randomised per shot, so neither one benefits from a warm cache.
   \item \textbf{Pre-registration.} Before every confirmation run we wrote down the settings, sample sizes, seeds and pass/fail rules in
-        \texttt{discussion/05}, \texttt{09}, \texttt{12}, \texttt{14} and \texttt{15}. Discovery and confirmation use
+        \texttt{docs/discussion/05}, \texttt{09}, \texttt{12}, \texttt{14} and \texttt{15}. Discovery and confirmation use
         disjoint seeds.
   \item \textbf{Accuracy verdict.} Pairs where exactly one decoder fails are ``discordant''. A one-sided 99.2\%
         Clopper--Pearson bound on the gate's share of discordant pairs gives an upper bound on the failure ratio
@@ -282,7 +282,7 @@ These shots are the natural target for a learned per-shot check.}
 \subsection{A learned hard-shot spotter (tested, negative)}\label{sec:hardshot}
 Following Figure~\ref{fig:disc}, we tested the ML component we had recommended: a classifier that looks at a syndrome
 \emph{before} decoding and sends predicted-hard shots straight to the referee, skipping fast runs that would be wasted.
-A wrong prediction can only cost time. The design was agreed with GPT and Gemini (\texttt{discussion/19}).
+A wrong prediction can only cost time. The design was agreed with GPT and Gemini (\texttt{docs/discussion/19}).
 \begin{itemize}
   \item \textbf{Ceiling first.} Even a perfect spotter improves the mean by only 3--7 points. It moves the p99 ratio at $p=0.004$ from
         1.03 to 0.99 and the p90 ratio at $p=0.005$ from 1.01 to 0.97.
@@ -377,12 +377,12 @@ python experiments/report_figures.py
 \end{verbatim}
 \end{small}
 All raw data are in \texttt{data/} and every summary is in \texttt{results/}. The full three-AI discussion, including
-each pre-registration, is in \texttt{discussion/}, and every prompt is listed in \texttt{PROMPTS.md}.
+each pre-registration, is in \texttt{docs/discussion/}, and every prompt is listed in \texttt{docs/PROMPTS.md}.
 
 \section{How this report was written}
 The team lead directed the work through Claude Code. Claude ran the experiments, wrote the code and integrated this report.
 GPT (via \texttt{codex}) drafted Sections~1--2 and Gemini (via \texttt{agy}) drafted Section~3 and the lessons section, both from a
-shared fact sheet (\texttt{discussion/17\_report\_brief.md}). Both then fact-checked the assembled draft. Every number traces
+shared fact sheet (\texttt{docs/discussion/17\_report\_brief.md}). Both then fact-checked the assembled draft. Every number traces
 to a file in \texttt{results/}.
 
 \end{document}

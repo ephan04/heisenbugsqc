@@ -31,7 +31,7 @@ from adaptive_select import policy  # noqa: E402
 LEVELS = [0.003, 0.004, 0.0045, 0.005, 0.0055, 0.006]
 DISCOVERY = {0.003: (10000, 1030), 0.004: (6000, 1040), 0.0045: (3000, 1045), 0.005: (3000, 1050),
              0.0055: (1500, 1055), 0.006: (1000, 1060)}
-# Revised table (discussion/13): full referee up to 0.005 with a small cap, cheap referees above.
+# Revised table (docs/discussion/13): full referee up to 0.005 with a small cap, cheap referees above.
 TABLE = {0.003: (10, "R5"), 0.004: (10, "R5"), 0.0045: (10, "R5"), 0.005: (10, "R5"),
          0.0055: (5, "R2"), 0.006: (5, "R1")}
 WINDOWS = [1, 10, 100]

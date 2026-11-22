@@ -4,7 +4,7 @@
 
 Capped runs (K < 50) are derived from the uncapped run: solved within K restarts if it needed
 <= 80 + 60 K iterations; time scaled by iterations otherwise (approximate; stage 2 runs them for real).
-Selection rule (discussion/09_noise_adaptive_prereg.md): among settings with failure ratio <= 1.05
+Selection rule (docs/discussion/09_noise_adaptive_prereg.md): among settings with failure ratio <= 1.05
 vs the baseline, the lowest mean time; if none qualifies, K=50 with the R5 referee.
 """
 import json

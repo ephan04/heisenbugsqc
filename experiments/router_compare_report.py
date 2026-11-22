@@ -1,4 +1,4 @@
-"""Report for router_compare.py (pre-registered in discussion/25).
+"""Report for router_compare.py (pre-registered in docs/discussion/25).
 
   python experiments/router_compare_report.py data/router_compare_p0.003.npz
 """

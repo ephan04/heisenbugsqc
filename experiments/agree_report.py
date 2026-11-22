@@ -1,5 +1,5 @@
 """Score the agreement gate against Relay-BP using the pre-registered criteria
-(discussion/05_preregistration.md).
+(docs/discussion/05_preregistration.md).
 
   python experiments/agree_report.py data/agree_p0.004_s101.npz data/agree_p0.003_s201.npz ...
 

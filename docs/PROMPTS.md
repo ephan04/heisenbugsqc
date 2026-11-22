@@ -47,17 +47,48 @@
 43. `2026-11-22 04:36`: how long will it take to do the lower values of relay bp
 44. `2026-11-22 04:37`: just do 0.003
 45. `2026-11-22 05:04`: push to repo
+46. `2026-11-22 05:05`: create a thourough report and explenation of everything that we've done here, from the problem, the pre-reqs, what approaches we thought of, and where we are right now with figures. have gpt and agy help you write it. as a pdf
+47. `2026-11-22 05:23`: whats the hardware cost?
+48. `2026-11-22 05:27`: how light is this in comparision to what the repo mentioens
+49. `2026-11-22 05:30`: What was the approach for ML that you recommanded?
+50. `2026-11-22 05:31`: how long would this take
+51. `2026-11-22 05:31`: apply a and work through it with gpt and gagy
+52. `2026-11-22 05:39`: so is there any space where ML can help out?
+53. `2026-11-22 05:44`: i want you 3 to look at the challaneg what we are solving (challenge 1) and check that this approach satisfies it
+54. `2026-11-22 05:49`: i want you 3 to think about how to appraoch teh loss simulation appraoch and how you can fo it
+55. `2026-11-22 09:06`: where does https://github.com/ephan04/heisenbugsqc/tree/ml-router ran in the work you've done?
+56. `2026-11-22 09:09`: go for it
+57. `2026-11-22 09:10`: can you just do 0.003
+58. `2026-11-22 09:23`: so can what we have work out of the gate with no AI and ML?
+59. `2026-11-22 09:24`: What about detecting the noise level? Does the program do that itself as well?
+60. `2026-11-22 13:37`: okay start running
+61. `2026-11-22 13:50`: stop this run
+62. `2026-11-22 13:51`: look at emmas repo and run her model with p = 0.003,0.004, 0.005 at 10k shots
+63. `2026-11-22 15:16`: can you push the data
+64. `2026-11-22 15:32`: we want to do a live demo of what was made, not emmas ML. I want you 3 too come up a plan for a quick live demonstartion that once completed, shows the data on a graph comparing the data that they provided and our output, copmaring speed and accuracy, the figure can have 2 graphs for each run, if possible, try to see if you can create a live graph that is updated and geerated as ran. don't build come back with a plan
+65. `2026-11-22 15:44`: u 3, pull al the data and metrics and present the hardware facts and then give me some figures
+66. `2026-11-22 15:52`: for 2, how long would it take to create the data to fill in the solid orange bar>
+67. `2026-11-22 15:55`: can you add scaling factors to image 2 to show the improvement that our gate approahc had
+68. `2026-11-22 16:06`: Okay we are done here, I want you to look at the current repo, https://github.com/ephan04/heisenbugsqc, pull everything thats on it, and then prganize the whole thing and push the new repo, Work along with the other 2. it should be well orgnaized, titled, and the read me should be simple with figures and concepts, a good intro. Then before you push it, show it to me locally
 
 ## 2. Prompts Claude sent to GPT (codex) and Gemini (agy)
 
-Each round's prompt is a file in `discussion/`, and each reply sits next to it (`*_gpt.md`, `*_gemini.md`).
-The `discussion/.gemini_prompt*.txt` files hold the exact text sent to Gemini in rounds 1-4, with the files pasted in, because Gemini could not read files itself.
+Each round's prompt is a file in `docs/discussion/`, and each reply sits next to it (`*_gpt.md`, `*_gemini.md`).
+The `docs/discussion/.gemini_prompt*.txt` files hold the exact text sent to Gemini in rounds 1-4, with the files pasted in, because Gemini could not read files itself.
 
-- `discussion/02_round2_prompt.md`
-- `discussion/03_round3_prompt.md`
-- `discussion/04_verify_prompt.md`
-- `discussion/06_round5_prompt.md`
-- `discussion/08_noise_adaptive_prompt.md`
-- `discussion/10_discovery_review_prompt.md`
-- `discussion/11_confirm_review_prompt.md`
-- `discussion/00_brief.md`
+- `docs/discussion/02_round2_prompt.md`
+- `docs/discussion/03_round3_prompt.md`
+- `docs/discussion/04_verify_prompt.md`
+- `docs/discussion/06_round5_prompt.md`
+- `docs/discussion/08_noise_adaptive_prompt.md`
+- `docs/discussion/10_discovery_review_prompt.md`
+- `docs/discussion/11_confirm_review_prompt.md`
+- `docs/discussion/00_brief.md`
+- `docs/discussion/17_report_brief.md`
+- `docs/discussion/19_hardshot_design_prompt.md`
+- `docs/discussion/20_hardshot_result_prompt.md`
+- `docs/discussion/22_challenge_check_prompt.md`
+- `docs/discussion/23_loss_design_prompt.md`
+- `docs/discussion/29_demo_plan_prompt.md`
+- `docs/discussion/31_hardware_figures_prompt.md`
+- `docs/discussion/33_reorg_prompt.md`
