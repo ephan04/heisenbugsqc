@@ -1,0 +1,27 @@
+p=0.005: gate K=50 referee=R5, router t=0.7
+[X] 100/1000
+[X] 200/1000
+[X] 300/1000
+[X] 400/1000
+[X] 500/1000
+[X] 600/1000
+[X] 700/1000
+[X] 800/1000
+[X] 900/1000
+[X] 1000/1000
+[X] router paths {'bp': 110, 'relay': 794, 'bposd': 96}
+[Z] 100/1000
+[Z] 200/1000
+[Z] 300/1000
+[Z] 400/1000
+[Z] 500/1000
+[Z] 600/1000
+[Z] 700/1000
+[Z] 800/1000
+[Z] 900/1000
+[Z] 1000/1000
+[Z] router paths {'bp': 75, 'relay': 825, 'bposd': 100}
+relay   fails [50 46] pairs   95 LER 8.28e-03  mean  1385.7  p50   387.8  p90  4787.8  p99    7804  max   10566 ms
+bposd   fails [143 150] pairs  272 LER 2.61e-02  mean   553.9  p50   540.2  p90   881.5  p99    1288  max    1897 ms
+router  fails [82 84] pairs  159 LER 1.43e-02  mean   978.2  p50   420.4  p90  3131.0  p99    5530  max    9485 ms
+gate    fails [52 44] pairs   95 LER 8.28e-03  mean  1264.7  p50   131.4  p90  5543.5  p99    7808  max   11510 ms
