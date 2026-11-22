@@ -16,6 +16,21 @@ WORKERS = 8
 KIT = {0.003: {"bposd": (56, 4.7e-4, 0.6e-4, 140), "relay": (5, 4.2e-5, 1.9e-5, 100)},
        0.004: {"bposd": (522, 4.4e-3, 0.2e-3, 330), "relay": (105, 8.7e-4, 0.9e-4, 380)},
        0.005: {"bposd": (2588, 2.3e-2, 0.05e-2, 590), "relay": (825, 6.9e-3, 0.2e-3, 1700)}}
+# Wall-clock time of three 8-worker runs, as printed at the end of each run (results/wall_clock_runs.txt).
+WALL_CLOCK = {"data/router_compare_p0.003.npz": 402, "data/router_eval_p0.004.npz": 971,
+              "data/router_eval_p0.005.npz": 3335}
+
+
+def parallel_efficiency():
+    """How many of the 8 workers were busy on average: total decode time / wall-clock time."""
+    rows = []
+    for path, wall in WALL_CLOCK.items():
+        d = np.load(path, allow_pickle=True)
+        busy = float(d["seconds"].sum())
+        rows.append(dict(run=path, p=float(d["p"]), pairs=int(d["shots"]), decoders=list(d["decoders"]),
+                         decode_seconds=busy, wall_seconds=wall, busy_workers=busy / wall,
+                         efficiency=busy / wall / WORKERS))
+    return rows
 
 
 def sh(cmd):
@@ -59,7 +74,8 @@ def main():
                      fails=big["relay_fails"], ler=big["relay_ler"], mean_ms=big["relay_mean_ms"]))
     verdicts = {p: dict(vs_relay=compare[p]["gate_count_vs_relay"], vs_bposd=compare[p]["gate_count_vs_bposd"])
                 for p in compare if p in (0.003, 0.004, 0.005)}
-    out = dict(hardware=hardware(), rows=rows, gate_verdicts=verdicts, gate_100k_p0003=big)
+    eff = parallel_efficiency()
+    out = dict(hardware=hardware(), parallel_efficiency=eff, rows=rows, gate_verdicts=verdicts, gate_100k_p0003=big)
     (R / "all_metrics.json").write_text(json.dumps(out, indent=1, default=float))
     md = ["| p | decoder | source | pairs | failed pairs | LER / cycle | mean ms/pair | p90 | p99 | pairs/s (8 workers) |",
           "|---|---|---|---|---|---|---|---|---|---|"]
@@ -68,6 +84,12 @@ def main():
         md.append(f"| {r['p']} | {r['decoder']} | {r['source']} | {r['pairs']} | {r['fails']} | {r['ler']:.2e} | "
                   f"{r['mean_ms']:.0f} | {fmt(r.get('p90_ms'), '.0f')} | {fmt(r.get('p99_ms'), '.0f')} | "
                   f"{fmt(r.get('pairs_per_s_8w'), '.0f')} |")
+    md += ["", "Parallel efficiency: how many of the 8 workers were busy on average (total decode time / wall-clock time).",
+           "The pairs-per-second column assumes all 8 are busy, so it is optimistic by the gap shown here.", "",
+           "| run | p | pairs | decoders | decode time (s) | wall clock (s) | busy workers | efficiency |",
+           "|---|---|---|---|---|---|---|---|"]
+    md += [f"| `{e['run']}` | {e['p']} | {e['pairs']} | {', '.join(e['decoders'])} | {e['decode_seconds']:.0f} | "
+           f"{e['wall_seconds']} | {e['busy_workers']:.2f} of {WORKERS} | {e['efficiency']:.0%} |" for e in eff]
     (R / "all_metrics.md").write_text("\n".join(md) + "\n")
     print(json.dumps(out["hardware"], indent=1)); print("\n".join(md))
 

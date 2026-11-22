@@ -20,3 +20,12 @@
 | 0.005 | Relay-BP | organisers (kit README) | 10000 | 825 | 6.90e-03 | 1700 |  |  |  |
 | 0.005 | Relay-BP | ours, same shots | 3000 | 262 | 7.59e-03 | 1335 | 5038 | 7835 | 6 |
 | 0.005 | agreement gate | ours, same shots | 3000 | 262 | 7.59e-03 | 1164 | 5108 | 7603 | 7 |
+
+Parallel efficiency: how many of the 8 workers were busy on average (total decode time / wall-clock time).
+The pairs-per-second column assumes all 8 are busy, so it is optimistic by the gap shown here.
+
+| run | p | pairs | decoders | decode time (s) | wall clock (s) | busy workers | efficiency |
+|---|---|---|---|---|---|---|---|
+| `data/router_compare_p0.003.npz` | 0.003 | 10000 | bposd, relay, gate, router, bp_relay | 2940 | 402 | 7.31 of 8 | 91% |
+| `data/router_eval_p0.004.npz` | 0.004 | 10000 | bposd, relay, router | 7453 | 971 | 7.68 of 8 | 96% |
+| `data/router_eval_p0.005.npz` | 0.005 | 10000 | bposd, relay, router | 25846 | 3335 | 7.75 of 8 | 97% |

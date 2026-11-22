@@ -1,0 +1,4 @@
+# Final lines printed by experiments/router_compare.py (8 workers, MacBook Air M5), copied from the run logs
+data/router_compare_p0.003.npz: 10000 pairs at p=0.003 in 402 s
+data/router_eval_p0.004.npz: 10000 pairs at p=0.004 in 971 s
+data/router_eval_p0.005.npz: 10000 pairs at p=0.005 in 3335 s

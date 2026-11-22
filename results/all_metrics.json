@@ -34,6 +34,52 @@
    "peak_rss_mb": 165.28125
   }
  },
+ "parallel_efficiency": [
+  {
+   "run": "data/router_compare_p0.003.npz",
+   "p": 0.003,
+   "pairs": 10000,
+   "decoders": [
+    "bposd",
+    "relay",
+    "gate",
+    "router",
+    "bp_relay"
+   ],
+   "decode_seconds": 2940.114018397493,
+   "wall_seconds": 402,
+   "busy_workers": 7.313716463675356,
+   "efficiency": 0.9142145579594195
+  },
+  {
+   "run": "data/router_eval_p0.004.npz",
+   "p": 0.004,
+   "pairs": 10000,
+   "decoders": [
+    "bposd",
+    "relay",
+    "router"
+   ],
+   "decode_seconds": 7452.997200532453,
+   "wall_seconds": 971,
+   "busy_workers": 7.675589289940734,
+   "efficiency": 0.9594486612425918
+  },
+  {
+   "run": "data/router_eval_p0.005.npz",
+   "p": 0.005,
+   "pairs": 10000,
+   "decoders": [
+    "bposd",
+    "relay",
+    "router"
+   ],
+   "decode_seconds": 25846.062759031396,
+   "wall_seconds": 3335,
+   "busy_workers": 7.749943855781528,
+   "efficiency": 0.968742981972691
+  }
+ ],
  "rows": [
   {
    "p": 0.003,
