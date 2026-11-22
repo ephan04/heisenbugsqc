@@ -1,0 +1,46 @@
+3000 shots (1219 test). Fast BP converged on 8.9%. 'slow' = relay-BP over 2286 ms
+training label 'safe': 50 positive examples, model: logistic
+classifier: 0.07 ms per call
+at t=0.5: flags 69% of 'safe' test shots, false alarms on 31% of the others
+
+policy                             fails  fail %   mean ms    p99 ms   to OSD
+relay-BP only                         44   3.61%     501.2      4412     0.0%
+BP-OSD only                          162  13.29%     230.5       504   100.0%
+BP gate -> relay-BP                   44   3.61%     505.8      4420     0.0%
+BP gate -> BP-OSD                    162  13.29%     237.6       513    90.7%
+BP gate -> router (t=0.3)            149  12.22%     227.3       890    48.8%
+BP gate -> router (t=0.5)            123  10.09%     251.7      3258    29.7%
+BP gate -> router (t=0.7)             87   7.14%     342.0      4346    12.7%
+BP gate -> router (t=0.8)             63   5.17%     423.2      4382     5.7%
+BP gate -> router (t=0.9)             47   3.86%     489.6      4420     1.1%
+BP gate -> router (t=0.95)            46   3.77%     502.2      4420     0.2%
+BP gate -> router (t=0.99)            44   3.61%     505.9      4420     0.0%
+BP gate -> perfect router (slow)      71   5.82%     217.9      1826     8.7%
+BP gate -> perfect router (safe)      36   2.95%     399.8      4395     3.2%
+
+plot saved to ml_router/result/route_X_p0.005_safe_logistic_tradeoff.png
+model saved to ml_router/result/route_X_p0.005_safe_logistic.joblib
+
+3000 shots (1219 test). Fast BP converged on 9.2%. 'slow' = relay-BP over 1913 ms
+training label 'safe': 61 positive examples, model: logistic
+classifier: 0.07 ms per call
+at t=0.5: flags 78% of 'safe' test shots, false alarms on 40% of the others
+
+policy                             fails  fail %   mean ms    p99 ms   to OSD
+relay-BP only                         54   4.43%     615.9      4515     0.0%
+BP-OSD only                          170  13.95%     249.6       568   100.0%
+BP gate -> relay-BP                   54   4.43%     621.0      4525     0.0%
+BP gate -> BP-OSD                    170  13.95%     257.2       577    90.6%
+BP gate -> router (t=0.3)            167  13.70%     247.5       598    63.0%
+BP gate -> router (t=0.5)            149  12.22%     271.5      3542    37.5%
+BP gate -> router (t=0.7)             94   7.71%     437.1      4436     9.4%
+BP gate -> router (t=0.8)             70   5.74%     527.9      4471     3.4%
+BP gate -> router (t=0.9)             55   4.51%     608.7      4525     0.4%
+BP gate -> router (t=0.95)            54   4.43%     621.0      4525     0.0%
+BP gate -> router (t=0.99)            54   4.43%     621.0      4525     0.0%
+BP gate -> perfect router (slow)     109   8.94%     230.8      1619    11.3%
+BP gate -> perfect router (safe)      46   3.77%     525.7      4482     3.0%
+
+plot saved to ml_router/result/route_Z_p0.005_safe_logistic_tradeoff.png
+model saved to ml_router/result/route_Z_p0.005_safe_logistic.joblib
+

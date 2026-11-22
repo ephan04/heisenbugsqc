@@ -1,0 +1,137 @@
+\section{The problem}
+
+Quantum error correction protects quantum information by spreading it across many imperfect physical qubits. This protection requires a classical decoder: software that interprets repeated measurements and decides which errors most plausibly occurred. A useful decoder must make few logical mistakes and finish quickly. These objectives can conflict, because the measurements that are hardest to interpret may also require the most computation.
+
+Our task comes from Challenge 1 of the MidQWest 2026 Infleqtion ``Qubits \& Gradients'' challenge. It asks for ML-assisted decoding of the $[[144,12,12]]$ Gross code, a quantum low-density parity-check code, or qLDPC code. The required comparison is against two supplied decoders, BP-OSD and Relay-BP, at physical noise strengths
+$p \in \{0.003,0.004,0.005\}$.
+The deliverables include logical error rates, decoding latency, resource comparisons, a GitHub repository, a plot, and a presentation.
+
+The central question is whether we can spend less computation on easy cases while preserving accuracy on difficult ones. This is more demanding than making a decoder faster on average. An inexpensive decision to accept a wrong answer can damage error correction, while an unsuccessful fast attempt followed by a slow fallback can increase latency.
+
+\subsection{What the decoder receives and predicts}
+
+The challenge uses a simulated memory experiment. Quantum information is prepared, held through 12 noisy syndrome-measurement cycles, and finally read out without additional noise. There are separate experiments for $X$ memory and $Z$ memory, corresponding to preparation in $|+\rangle$ and $|0\rangle$, respectively.
+
+For each basis, the decoder receives 936 binary detector outcomes. A detector is an alarm indicating an unexpected change in the measurement record. The decoder must explain those alarms using a model containing 8,784 possible error mechanisms. Its final prediction concerns the 12 logical observables stored by the code.
+
+The supplied kit uses \texttt{stim} to construct and sample the noisy circuits. It provides circuits, detector-model matrices, sampling utilities, and baseline decoders. The full $XYZ$ decoding problem contains 1,728 detectors and approximately 68,000 mechanisms; the separate basis problems give the dimensions used above.
+
+The challenge scores the two memory experiments jointly. Shot $k$ from the $X$ experiment is paired with shot $k$ from the $Z$ experiment. A pair fails if either decoder prediction gets any logical observable wrong. Thus, success means protecting the complete set of logical observables in both members of the pair.
+
+\subsection{Why speed and accuracy must be measured together}
+
+BP-OSD and Relay-BP provide different starting points. BP-OSD combines a fast iterative procedure with an algebraic search that supplies a syndrome-consistent answer. Relay-BP searches through multiple iterative trajectories and chooses among the solutions it finds. Relay-BP achieves strong accuracy, but its runtime varies considerably between shots.
+
+The kit reference illustrates this tradeoff. At $p=0.004$, it reports logical error rates per cycle of $4.4 \times 10^{-3}$ for BP-OSD and $8.7 \times 10^{-4}$ for Relay-BP, using 10,000 shots per basis. Its reported mean decoding times are $0.33$ seconds and $0.38$ seconds, respectively, while Relay-BP's 99th-percentile latency is about 6 seconds. These are reference measurements, not universal timing constants.
+
+Our initial approach was hierarchical: a light decoder handles easy shots, while harder shots receive additional computation. This leads naturally to an acceptance or escalation decision for each complete shot. A proposed router must therefore be judged by the logical failures and runtime of the complete decoding system. Its own classification accuracy is insufficient: different routing mistakes have very different consequences.
+
+The acceptance decision also needs evidence beyond internal confidence. A decoder can find an explanation that matches every alarm yet predicts the wrong logical outcome. Much of the challenge is identifying when a fast answer is reliable enough to accept.
+
+The bonus theme concerns qubit loss and heralding, but the supplied kit does not simulate loss. The experiments discussed here concern circuit-level depolarizing noise. This scope matters when interpreting both decoder performance and the value of machine learning.
+
+\section{Prerequisites}
+
+\subsection{Physical qubits, logical qubits, and stabilizer checks}
+
+A physical qubit is an individual qubit used by the circuit. A logical qubit is information encoded collectively across physical qubits. Encoding introduces redundancy so that some physical errors can be detected and corrected without measuring the stored logical information directly.
+
+The notation $[[n,k,d]]$ describes a quantum code with $n$ data qubits, $k$ logical qubits, and distance $d$. The Gross code is $[[144,12,12]]$: it stores 12 logical qubits in 144 data qubits and has distance 12. The experiment also uses 144 check qubits, giving 288 physical qubits in total.
+
+The distance is the minimum weight of a nontrivial logical Pauli operator: an operation that changes the encoded information while escaping the code's stabilizer checks. Weight counts the data qubits on which that operator acts nontrivially. Distance is a property of the code; it is not a count of how many circuit faults a particular decoder will successfully handle.
+
+Stabilizer checks are mutually compatible measurements of joint properties of the data qubits. Their outcomes reveal whether errors have disturbed the encoded state without directly revealing the logical information. Check qubits support these measurements through interactions with data qubits. Each Gross-code check touches six data qubits.
+
+A collection of check outcomes is called a syndrome. The syndrome supplies constraints on the error, but it generally does not identify a unique error. Several different physical error patterns can produce the same syndrome.
+
+\subsection{Syndromes, detectors, and alarms}
+
+Repeated measurements introduce a second source of uncertainty: the checks themselves can be measured incorrectly. An unexpected check outcome could result from a data error, a measurement error, or another fault in the measurement circuit.
+
+Detectors organize this history into alarms. In the kit's description, an alarm occurs when a check's value changes from the previous cycle. Preparation and final readout provide boundary information for interpreting the record. The detector string therefore records unexpected relationships between measurements across the experiment.
+
+An alarm is not a direct observation of an individual faulty qubit. One error mechanism can trigger several detectors, and several mechanisms can combine so that some detector effects cancel. A decoder must interpret the pattern jointly.
+
+This distinction also explains why counting alarms is useful but limited. More noise tends to produce more alarms, so their number can help estimate the overall noise strength. Locating an error and predicting its logical effect require the structure of the detector pattern, not merely its size.
+
+\subsection{Circuit-level noise and the memory experiment}
+
+The physical noise parameter $p$ controls the strength of the circuit-level depolarizing noise model. Noise is applied throughout the circuit: controlled-$X$ operations, preparation, measurement, and idle operations are all noisy. It is therefore insufficient to imagine that data qubits simply flip independently once between otherwise perfect measurements.
+
+Circuit faults occur at different locations and times. Their effects can propagate through later operations, producing related changes in detectors and logical observables. The decoder's error mechanisms describe these effects in the detector model.
+
+The memory experiment asks whether the encoded information survives storage. In $X$ memory, preparation is in $|+\rangle$; in $Z$ memory, it is in $|0\rangle$. Each experiment then runs 12 noisy syndrome cycles and ends with a noiseless final readout. The decoder uses the detector record to predict the error's effect on the logical observables. The sampled experiment supplies the actual effect for scoring.
+
+Let $P_{\mathrm{pair\_fail}}$ denote the probability that an $X$--$Z$ pair fails. The challenge defines the logical error rate per cycle as
+$ \mathrm{LER} = 1 - (1-P_{\mathrm{pair\_fail}})^{1/12} $.
+Equivalently, $(1-\mathrm{LER})^{12}=1-P_{\mathrm{pair\_fail}}$.
+
+This is an equivalent per-cycle rate derived from the complete memory experiment. It does not identify the cycle in which a logical failure occurred or establish that failures in different cycles are independent. It is also a failure rate for the paired experiment across all logical observables, rather than a rate for one logical qubit.
+
+\subsection{The Gross code and why qLDPC codes matter}
+
+The Gross code is a bivariate bicycle qLDPC code described by Bravyi et al.\ in \textit{Nature} 627, 778 (2024). Its construction uses
+$A=x^3+y+y^2$ and $B=y^3+x+x^2$
+on a $12 \times 6$ torus. Here, $x$ and $y$ represent translations in the two periodic directions; the expressions specify connections used to construct the checks.
+
+``Low-density parity-check'' refers to sparse check structure: each check involves a small subset of the data qubits. Sparsity makes the constraints economical to represent and gives iterative decoders a graph on which to operate. The ability to encode multiple logical qubits while retaining sparse checks makes qLDPC codes important candidates for quantum error correction.
+
+Sparse does not necessarily mean geometrically local. The bivariate bicycle checks can involve long-range connections. Moreover, sparse constraints do not guarantee easy decoding: the pattern of connections and the ambiguity among error explanations both matter.
+
+The Gross code combines a concrete encoding benefit---12 logical qubits in 144 data qubits---with a difficult classical inference problem. It is therefore a useful test of whether decoding strategies can exploit sparse structure without losing logical accuracy.
+
+\subsection{Decoding as solving $He=s$}
+
+The detector model expresses decoding using binary linear algebra. Let $s$ be the observed detector string and $e$ a binary vector indicating a proposed set of error mechanisms. The detector matrix $H$ specifies which alarms each mechanism triggers. A syndrome-consistent explanation satisfies
+$He=s$,
+with arithmetic modulo two.
+
+For each basis in this challenge,
+$H \in \{0,1\}^{936 \times 8784}$.
+A column corresponds to an error mechanism, rather than necessarily to a single data-qubit error. Adding columns modulo two combines their detector effects; two contributions to the same detector cancel.
+
+The matrix $L$ maps mechanisms to their effects on the 12 logical observables. Given an estimated mechanism vector $\hat e$, the decoder predicts $L\hat e$. Successful decoding requires this logical prediction to match the actual logical effect.
+
+Finding the exact physical error is unnecessary. Different mechanism vectors can have the same syndrome and the same logical effect. This ambiguity is part of quantum-code degeneracy. However, other mechanism vectors can have the same syndrome and different logical effects. Consequently, $H\hat e=s$ certifies consistency with the alarms, not logical correctness.
+
+The decoding objective is therefore to use the noise model and observed syndrome to select a plausible explanation with the correct logical effect.
+
+\subsection{Belief propagation: fast messages, difficult graphs}
+
+Belief propagation, or BP, performs iterative message passing on a Tanner graph. One kind of node represents an error mechanism, another represents a detector constraint, and edges connect mechanisms to the detectors they affect.
+
+The noise model supplies initial beliefs about the mechanisms. Messages then exchange information about whether proposed errors fit neighboring constraints. The min-sum form used here updates approximate reliability information through repeated iterations.
+
+BP is fast because each iteration follows the sparse graph rather than searching every possible mechanism vector. A limited number of iterations can solve many shots cheaply. Quantum codes nevertheless pose difficulties: degeneracy, short graph cycles, and trapping sets can prevent convergence to a syndrome-consistent explanation.
+
+Early measurements illustrate both properties. BP with 80 iterations cost about 5--9 milliseconds. Across 500 shots at each required noise strength, it converged on approximately $87\%$, $64\%$, and $30\%$ of shots as $p$ increased. None of the converged answers in those samples was wrong. That observation motivates an early exit, but a finite sample with no observed errors does not prove that convergence guarantees logical correctness.
+
+\subsection{BP-OSD: algebraic work after message passing}
+
+BP-OSD follows BP with ordered-statistics decoding. BP supplies reliability information; OSD uses it to organize an algebraic search, including Gaussian elimination on the most likely columns. The supplied CS-10 configuration uses combination sweep order 10.
+
+This additional work allows BP-OSD to return a syndrome-consistent answer even when BP alone fails to converge. It still cannot guarantee the correct logical class, because multiple classes may explain the same syndrome.
+
+Gaussian elimination and the combination sweep make BP-OSD more expensive than a short successful BP run. Its computational structure is comparatively predictable, however, so it runs in roughly fixed time rather than continuing through a highly variable number of restarts.
+
+\subsection{Relay-BP: accuracy through multiple trajectories}
+
+Relay-BP, described by Mueller et al.\ in arXiv:2506.01779, takes another approach to BP failures. The supplied \texttt{relay\_bp} version 0.2.2 starts with an 80-iteration BP leg. Subsequent legs contain 60 iterations and use random memory strengths $\gamma$ drawn from $(-0.226,0.622)$. Each leg is warm-started from the previous one.
+
+The baseline collects solutions until it finds five distinct solutions, controlled by \texttt{stop\_nconv=5}, or reaches 300 legs. It returns the most likely solution found. Distinct mechanism solutions need not imply distinct logical answers.
+
+Changing the iterative trajectory can escape difficulties encountered by an earlier leg, supporting high accuracy. The cost is variable work: some shots resolve quickly, while difficult shots consume many legs. This creates a long latency tail and makes high-percentile runtime an essential metric.
+
+Relay-BP's random generator has a seed, and its state carries over between decodes. Reproducibility therefore depends on both initialization and how the decoder instance is used across shots.
+
+\subsection{Statistics: paired evidence and uncertainty}
+
+We separate discovery from confirmation. Settings are chosen on discovery data, while confirmation uses disjoint seeds and criteria registered beforehand. Decoders receive identical shots, with their execution order randomized for each shot.
+
+Accuracy comparisons use discordant pairs: cases where one decoder fails and the other succeeds. These outcomes show which decoder wins on the same difficult inputs. The analysis uses a one-sided $99.2\%$ conditional Clopper--Pearson bound, with a Bonferroni adjustment over six comparisons. Accuracy passes when the resulting upper bound on the failure ratio is below $1.2$.
+
+This criterion asks whether the evidence supports less than a $20\%$ relative increase in failures. Similar observed counts alone do not establish that claim. When failures are rare, even a large experiment can remain inconclusive.
+
+Latency comparisons use paired bootstrap $95\%$ upper bounds on ratios of mean, 90th-percentile, and 99th-percentile runtime. Latency passes only if all three bounds are below one. The mean captures average cost; the percentiles expose slow shots that an average can conceal.
+
+Measurements use eight workers on one ten-core Apple-silicon Mac. Absolute milliseconds are machine-specific, and concurrency affects the measured speedups. We therefore emphasize ratios, report the execution conditions, and distinguish an observed improvement from one supported by the registered uncertainty bounds.

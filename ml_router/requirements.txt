@@ -1,0 +1,8 @@
+stim>=1.15
+ldpc>=2.4
+numpy
+scipy
+relay-bp==0.2.2
+scikit-learn
+matplotlib
+joblib

@@ -1,0 +1,26 @@
+p = 0.003: 10000 pairs, seeds 5030/5031 (X/Z), file data/router_compare_p0.003.npz
+  decoder               fails [X Z]  pairs  LER/cycle  mean ms  p90 ms  p99 ms
+  BP-OSD                   [28, 27]     55   4.59e-04     99.2     329     597
+  Relay-BP                   [3, 2]      5   4.17e-05     59.6      87     419
+  ML router (t=0.7)        [22, 19]     41   3.42e-04     60.7     137     391
+  router sent basis decodes to: bp 58.8% (0 failed), relay 35.5% (1 failed), bposd 5.7% (40 failed)
+  router vs Relay-BP: only router 38, only Relay-BP 2, ratio upper 13.67 -> accuracy FAIL;  mean 1.02 (95% upper 1.06)  p90 1.59 (95% upper 1.84)  p99 0.93 (95% upper 1.16) -> latency FAIL
+  router vs BP-OSD:   0.75x the failures (only router 0, only BP-OSD 14);  time mean 0.61  p90 0.42  p99 0.66
+
+p = 0.004: 10000 pairs, seeds 5040/5041 (X/Z), file data/router_eval_p0.004.npz
+  decoder               fails [X Z]  pairs  LER/cycle  mean ms  p90 ms  p99 ms
+  BP-OSD                 [287, 265]    545   4.66e-03    273.0     638     804
+  Relay-BP                 [50, 44]     94   7.87e-04    262.0     435    4244
+  ML router (t=0.7)      [185, 169]    351   2.97e-03    210.3     429    2182
+  router sent basis decodes to: bp 29.9% (0 failed), relay 61.0% (37 failed), bposd 9.1% (317 failed)
+  router vs Relay-BP: only router 282, only Relay-BP 25, ratio upper 4.31 -> accuracy FAIL;  mean 0.80 (95% upper 0.83)  p90 0.99 (95% upper 1.03)  p99 0.51 (95% upper 0.60) -> latency FAIL
+  router vs BP-OSD:   0.64x the failures (only router 13, only BP-OSD 207);  time mean 0.77  p90 0.67  p99 2.71
+
+p = 0.005: 10000 pairs, seeds 5050/5051 (X/Z), file data/router_eval_p0.005.npz
+  decoder               fails [X Z]  pairs  LER/cycle  mean ms  p90 ms  p99 ms
+  BP-OSD               [1335, 1249]   2418   2.28e-02    533.8     842    1043
+  Relay-BP               [422, 424]    827   7.17e-03   1214.6    4616    6813
+  ML router (t=0.7)      [785, 692]   1413   1.26e-02    836.2    2373    5400
+  router sent basis decodes to: bp 9.4% (0 failed), relay 79.5% (390 failed), bposd 11.1% (1087 failed)
+  router vs Relay-BP: only router 751, only Relay-BP 165, ratio upper 1.80 -> accuracy FAIL;  mean 0.69 (95% upper 0.71)  p90 0.51 (95% upper 0.55)  p99 0.79 (95% upper 0.85) -> latency PASS
+  router vs BP-OSD:   0.58x the failures (only router 76, only BP-OSD 1081);  time mean 1.57  p90 2.82  p99 5.18

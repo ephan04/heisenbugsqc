@@ -17,3 +17,4 @@ python experiments/adaptive_confirm.py --p 0.004 --shots 6000 --seed 2040 --out 
 python experiments/adaptive_report.py data/confirm_p*.npz
 ```
 The `data/` files are not committed. The seeds above regenerate them.
+- **Teammate's ML router** (`ml_router/`, from branch `ml-router`) compared at p = 0.003: `experiments/router_compare.py`, results in `results/router_compare_p0.003.txt`, discussion 25–26.

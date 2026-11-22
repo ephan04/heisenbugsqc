@@ -1,0 +1,34 @@
+\section{Lessons Learned and Limitations}
+
+Developing an ML-assisted, multi-tiered decoding architecture for a high-distance bivariate bicycle code yielded several practical insights into quantum error correction pipelines, the mechanics of statistical consensus, and experimental methodology.
+
+\subsection{Lessons Learned}
+
+\subsubsection{Algorithmic Consensus Over Learned Classifiers}
+Our most prominent finding was that learned acceptance gates (logistic regression and gradient-boosted trees on BP diagnostics) underperformed when tasked with accepting or escalating individual shots. Syndrome decoding on high-connectivity quantum codes operates under strict topological constraints where marginal probabilities do not trivially indicate coset correctness. Learned filters trained on internal belief propagation features produced unacceptable false-positive rates, yielding 5 excess logical failures at $p = 0.004$. In contrast, the zero-parameter Agreement Gate leveraged the stochastic nature of the perturbation process: requiring two runs with differently seeded later legs to arrive at identical 12-bit logical projections effectively suppressed logical errors without requiring threshold tuning.
+
+\subsubsection{Physical Sufficiency of Aggregate Error Statistics}
+Under spatially uniform, depolarizing circuit noise, spatial and temporal structures in detector firings provide negligible predictive value regarding overall error intensity. Complex feature embeddings (24 spatiotemporal check bins) mapped through a small neural network yielded no estimation advantage over a direct, scalar detector alarm count, which executed in $1\ \mu\text{s}$ with an error of $2\text{--}3\%$. In the absence of localized noise anomalies or anisotropic hardware defects, a simple alarm count appears to carry nearly all the information needed for online decoder scheduling.
+
+\subsubsection{Asymmetry of Routing Thresholds}
+In multi-tier systems, the penalties associated with threshold misclassification are highly asymmetric. Under-estimating physical noise defaults the system to conservative, highly capable decoders ($\text{R5}$), incurring a bounded latency overhead while preserving fidelity. Over-estimating physical noise by as little as $+10\%$, however, triggers aggressive truncation and routes complex syndromes to low-capability referees ($\text{R2}$, $\text{R1}$), resulting in an immediate $11\text{--}18\%$ surge in logical failures. Consequently, operational schedulers must incorporate deliberate downward conservatism.
+
+\subsubsection{The Tyranny of the Latency Tail}
+Accelerating the average case does not guarantee a performant quantum decoder. Cascaded decoders that execute sequentially (fast leg $\to$ verification leg $\to$ referee) inherently suffer from additive worst-case latencies on difficult syndromes. The lean agreement gate reduced mean execution time by up to $64\%$, but the first verified version made p99 latency $13\text{--}30\%$ worse at $p \ge 0.004$, because a long fast run was followed by the referee. Capping the fast run at $K=10$ restarts cut the p99 excess to about $3\%$ at $p=0.004$ (and $0.97\times$ at $p=0.005$, where p90 then failed by $1\%$); at $p=0.003$ the tail is $0.73\times$ Relay-BP's.
+
+\subsubsection{Sample Sizing and Statistical Power in Low-Noise Regimes}
+Benchmarking decoders at low logical error rates requires substantial sample sizes to avoid statistical noise. At $p = 0.003$, independent 10,000-shot evaluations of the identical baseline decoder yielded variance spanning 2 to 14 failures. Even an expanded trial of 100,000 pairs (86 gate failures vs.\ 74 baseline failures) proved statistically inconclusive under rigorous Bonferroni-corrected Clopper-Pearson bounds. Resolving a 20\% difference at $p=0.003$ needs well over $10^5$ pairs.
+
+\subsubsection{Collaborative Multi-Agent Verification}
+The structured interaction among three independent AI architectures (Claude, GPT, Gemini) served as an effective mechanism for error detection and experimental hygiene. Conceptual oversights, such as Gemini's low-weight acceptance threshold, an early claim that the gate was more accurate than Relay-BP, and the choice of the R2 referee at low noise, were systematically challenged and resolved through automated empirical falsification.
+
+\subsection{Limitations}
+
+Several limitations qualify the conclusions of this study:
+\begin{itemize}
+    \item \textit{Simulated Depolarizing Noise}: The benchmark evaluates circuit-level Pauli depolarizing noise simulated via Stim. Physical hardware implementations exhibit leakage, non-Markovian phase drift, cross-talk, and spatially inhomogeneous gate fidelities, which are not captured in uniform depolarizing models.
+    \item \textit{Absence of Erasure Channels}: Although heralded qubit loss represents an active area of investigation for neutral-atom architectures, the evaluation harness provided no mechanism to inject or herald erasures.
+    \item \textit{Sequential Execution Bottlenecks}: The prototype is orchestrated in Python and each decode runs on one core. Verification legs and referee fallbacks are invoked serially, forcing worst-case execution latency to equal the sum, rather than the maximum, of all stages.
+    \item \textit{Hardware Platform Specifics}: Latency profiles were collected on a single 10-core Apple Silicon architecture utilizing 8 parallel workers. While relative execution ratios provide a normalized comparison, absolute millisecond latencies reflect the specific memory bus, cache hierarchy, and single-thread IPC of this platform. Multi-worker execution slightly inflated apparent speedups ($0.70\times$ mean runtime vs.\ $0.79\times$ in single-worker controlled environments).
+    \item \textit{Discovery-Sample Overfitting}: Parameters governing the noise-adaptive table were tuned against discovery partitions. The failure of configuration $K5/\text{R2}$ during confirmation highlights the risk of overfitting discrete execution parameters to finite statistical samples.
+\end{itemize}

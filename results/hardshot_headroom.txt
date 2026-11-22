@@ -1,0 +1,33 @@
+Perfect spotter: skip exactly the decodes the gate would escalate (same outcome, no wasted fast runs).
+Also shown: skip every decode that is not solved in the first leg.
+
+p=0.003  setting K=10 R5   escalated 0.6% of decodes
+   gate as is        : fails   13 (RBP   12)  mean 0.40x  p90 0.16x  p99 0.75x
+   perfect spotter   : fails   13 (RBP   12)  mean 0.37x  p90 0.16x  p99 0.50x
+   skip if not first : fails   12 (RBP   12)  mean 0.42x  p90 0.16x  p99 0.92x
+   best-of-both      : fails   13 (RBP   12)  mean 0.36x  p90 0.16x  p99 0.50x  (skip whenever it is faster and no worse)
+p=0.004  setting K=10 R5   escalated 4.9% of decodes
+   gate as is        : fails   60 (RBP   61)  mean 0.71x  p90 0.57x  p99 1.03x
+   perfect spotter   : fails   60 (RBP   61)  mean 0.64x  p90 0.48x  p99 0.99x
+   skip if not first : fails   63 (RBP   61)  mean 0.73x  p90 0.81x  p99 0.99x
+   best-of-both      : fails   59 (RBP   61)  mean 0.63x  p90 0.45x  p99 0.99x  (skip whenever it is faster and no worse)
+p=0.0045  setting K=10 R5   escalated 10.5% of decodes
+   gate as is        : fails   83 (RBP   80)  mean 0.83x  p90 1.01x  p99 1.02x
+   perfect spotter   : fails   83 (RBP   80)  mean 0.76x  p90 0.87x  p99 0.99x
+   skip if not first : fails   81 (RBP   80)  mean 0.84x  p90 0.97x  p99 0.99x
+   best-of-both      : fails   83 (RBP   80)  mean 0.75x  p90 0.87x  p99 0.99x  (skip whenever it is faster and no worse)
+p=0.005  setting K=10 R5   escalated 20.6% of decodes
+   gate as is        : fails  240 (RBP  241)  mean 0.90x  p90 1.01x  p99 1.00x
+   perfect spotter   : fails  240 (RBP  241)  mean 0.84x  p90 0.97x  p99 0.96x
+   skip if not first : fails  243 (RBP  241)  mean 0.89x  p90 0.98x  p99 1.00x
+   best-of-both      : fails  240 (RBP  241)  mean 0.83x  p90 0.97x  p99 0.96x  (skip whenever it is faster and no worse)
+p=0.0055  setting K=5 R2   escalated 39.6% of decodes
+   gate as is        : fails  297 (RBP  286)  mean 0.71x  p90 0.94x  p99 0.83x
+   perfect spotter   : fails  297 (RBP  286)  mean 0.67x  p90 0.92x  p99 0.81x
+   skip if not first : fails  297 (RBP  286)  mean 0.68x  p90 0.92x  p99 0.81x
+   best-of-both      : fails  297 (RBP  286)  mean 0.67x  p90 0.91x  p99 0.81x  (skip whenever it is faster and no worse)
+p=0.006  setting K=5 R1   escalated 56.2% of decodes
+   gate as is        : fails  376 (RBP  367)  mean 0.60x  p90 0.64x  p99 0.94x
+   perfect spotter   : fails  376 (RBP  367)  mean 0.57x  p90 0.62x  p99 0.93x
+   skip if not first : fails  382 (RBP  367)  mean 0.57x  p90 0.62x  p99 0.93x
+   best-of-both      : fails  376 (RBP  367)  mean 0.57x  p90 0.62x  p99 0.93x  (skip whenever it is faster and no worse)

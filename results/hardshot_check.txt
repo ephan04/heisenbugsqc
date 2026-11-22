@@ -1,0 +1,54 @@
+training decodes 24500, escalated 10.1%
+inference cost per basis decode: alarm-count rule 2 us, logistic (escalated) 112 us, GBDT (escalated) 2828 us, GBDT (time saved) 717 us
+
+held-out: last 30% of each discovery file (train 50%, thresholds on the next 20%)
+
+ p=0.003  (3000 held-out pairs)
+   gate as is             fails   5 (RBP   5)  mean 0.40  p90 0.16  p99 0.71
+   perfect spotter        fails   5            mean 0.37  p90 0.16  p99 0.44  skip 0.7%
+   alarm-count rule       fails   5            mean 0.40  p90 0.16  p99 0.71  skip 0.0%
+   logistic (escalated)   fails   5            mean 0.41  p90 0.16  p99 0.71  skip 0.0%
+   GBDT (escalated)       fails   5            mean 0.49  p90 0.22  p99 0.72  skip 0.0%
+   GBDT (time saved)      fails   5            mean 0.43  p90 0.18  p99 0.71  skip 0.0%
+
+ p=0.004  (1800 held-out pairs)
+   gate as is             fails  16 (RBP  17)  mean 0.70  p90 0.59  p99 1.02
+   perfect spotter        fails  16            mean 0.63  p90 0.50  p99 0.99  skip 5.0%
+   alarm-count rule       fails  16            mean 0.70  p90 0.59  p99 1.02  skip 0.0%
+   logistic (escalated)   fails  16            mean 0.70  p90 0.60  p99 1.02  skip 0.0%
+   GBDT (escalated)       fails  16            mean 0.72  p90 0.61  p99 1.02  skip 0.0%
+   GBDT (time saved)      fails  16            mean 0.71  p90 0.60  p99 1.02  skip 0.0%
+
+ p=0.0045  (900 held-out pairs)
+   gate as is             fails  20 (RBP  18)  mean 0.81  p90 0.92  p99 1.02
+   perfect spotter        fails  20            mean 0.73  p90 0.77  p99 0.99  skip 9.9%
+   alarm-count rule       fails  20            mean 0.81  p90 0.92  p99 1.02  skip 0.0%
+   logistic (escalated)   fails  20            mean 0.81  p90 0.92  p99 1.02  skip 0.1%
+   GBDT (escalated)       fails  20            mean 0.82  p90 0.93  p99 1.02  skip 0.0%
+   GBDT (time saved)      fails  20            mean 0.81  p90 0.93  p99 1.02  skip 0.0%
+
+ p=0.005  (900 held-out pairs)
+   gate as is             fails  71 (RBP  69)  mean 0.89  p90 1.00  p99 0.99
+   perfect spotter        fails  71            mean 0.82  p90 0.96  p99 0.96  skip 20.3%
+   alarm-count rule       fails  71            mean 0.89  p90 1.00  p99 0.99  skip 0.0%
+   logistic (escalated)   fails  71            mean 0.90  p90 0.99  p99 0.99  skip 4.9%
+   GBDT (escalated)       fails  71            mean 0.89  p90 1.00  p99 1.00  skip 0.0%
+   GBDT (time saved)      fails  71            mean 0.89  p90 1.00  p99 0.99  skip 0.0%
+
+ p=0.0055  (450 held-out pairs)
+   gate as is             fails  90 (RBP  87)  mean 0.70  p90 0.96  p99 0.76
+   perfect spotter        fails  90            mean 0.66  p90 0.94  p99 0.74  skip 39.2%
+   alarm-count rule       fails  90            mean 0.70  p90 0.96  p99 0.76  skip 0.2%
+   logistic (escalated)   fails  90            mean 0.70  p90 0.96  p99 0.76  skip 1.9%
+   GBDT (escalated)       fails  90            mean 0.71  p90 0.96  p99 0.76  skip 0.3%
+   GBDT (time saved)      fails  90            mean 0.70  p90 0.96  p99 0.76  skip 0.0%
+
+ p=0.006  (300 held-out pairs)
+   gate as is             fails 130 (RBP 125)  mean 0.59  p90 0.57  p99 1.00
+   perfect spotter        fails 130            mean 0.56  p90 0.55  p99 0.98  skip 56.3%
+   alarm-count rule       fails 131            mean 0.59  p90 0.57  p99 1.00  skip 1.5%
+   logistic (escalated)   fails 131            mean 0.59  p90 0.57  p99 0.99  skip 5.5%
+   GBDT (escalated)       fails 131            mean 0.59  p90 0.57  p99 1.00  skip 2.0%
+   GBDT (time saved)      fails 130            mean 0.59  p90 0.57  p99 1.00  skip 0.2%
+
+logistic top features (standardised coefficients): p_hat +0.62, pair_density +0.56, adj_pairs -0.49, other_alarms +0.44, max_cycle +0.19, alarms +0.18, cycle_5 +0.16, cycle_7 +0.15

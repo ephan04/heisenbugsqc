@@ -1,0 +1,17 @@
+p = 0.003: 10000 pairs, seed 5030, same shots as data/compare_p0.003.npz
+  decoder                 fails  LER/cycle  mean ms  p90 ms  p99 ms
+  BP-OSD                     55   4.59e-04     99.2     329     597
+  Relay-BP                    5   4.17e-05     59.6      87     419
+  our gate (K10 R5)           7   5.84e-05     22.9      14     335
+  ML router (t=0.7)          41   3.42e-04     60.7     137     391
+  fast BP -> Relay-BP         6   5.00e-05     51.6      88     382
+  router sent basis decodes to: bp 58.8%, relay 35.5%, bposd 5.7%
+  vs Relay-BP:
+    our gate (K10 R5)      only it 3, only Relay-BP 1, ratio upper 1.99 -> accuracy FAIL;  mean 0.38 (95% upper 0.42)  p90 0.16 (95% upper 0.16)  p99 0.80 (95% upper 1.01) -> latency FAIL
+    ML router (t=0.7)      only it 38, only Relay-BP 2, ratio upper 13.67 -> accuracy FAIL;  mean 1.02 (95% upper 1.06)  p90 1.59 (95% upper 1.87)  p99 0.93 (95% upper 1.16) -> latency FAIL
+    fast BP -> Relay-BP    only it 3, only Relay-BP 2, ratio upper 2.49 -> accuracy INCONCLUSIVE;  mean 0.87 (95% upper 0.89)  p90 1.02 (95% upper 1.05)  p99 0.91 (95% upper 1.08) -> latency FAIL
+  vs BP-OSD:
+    our gate (K10 R5)      0.13x the failures, 0.23x mean time, 0.56x p99 time
+    ML router (t=0.7)      0.75x the failures, 0.61x mean time, 0.66x p99 time
+    fast BP -> Relay-BP    0.11x the failures, 0.52x mean time, 0.64x p99 time
+  sanity (deterministic decoders, fails now vs earlier run): bposd 55 vs 55, relay 5 vs 5, gate 7 vs 7

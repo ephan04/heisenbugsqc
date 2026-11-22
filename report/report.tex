@@ -1,0 +1,388 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black,citecolor=blue!50!black]{hyperref}
+\setlist{itemsep=2pt,topsep=4pt}
+\emergencystretch=3em
+\captionsetup{font=small,labelfont=bf}
+\graphicspath{{figures/}}
+
+\title{\textbf{An Agreement-Gated Relay-BP Decoder for the Gross Code}\\[4pt]
+\large MidQWest 2026 Hackathon --- Infleqtion Challenge 1: ML-assisted decoding of the $[[144,12,12]]$ Gross code}
+\author{Team Heisenbugs\\[2pt]\small Written with Claude (Anthropic), GPT (OpenAI, via Codex) and Gemini (Google, via Antigravity)}
+\date{November 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+We built a decoder for the $[[144,12,12]]$ Gross code that puts a cheap \emph{agreement gate} in front of
+Relay-BP. A fast Relay-BP run decodes each syndrome. If it needs more than its deterministic first leg, a second, differently seeded
+run checks it, and the answer is accepted only if both agree on the logical class. Disputed or unsolved shots go to a full Relay-BP ``referee''.
+A noise detector estimates the physical error rate from the alarm count and chooses the gate's settings.
+On identical simulated shots at the challenge's noise levels ($p = 0.003, 0.004, 0.005$) the gate has
+\textbf{3--8$\times$ fewer logical failures than BP-OSD}. Its logical error rate shows no statistically significant difference from Relay-BP's (non-inferiority within 20\% is
+shown at $p=0.005$; at $0.003$ and $0.004$ it is inconclusive), while it uses \textbf{13--61\% less mean decoding time}. Tail latency
+improves at $p=0.003$ (p99 $0.73\times$) but not at $p=0.004$--$0.005$, where it is roughly equal to Relay-BP's. In this simulator, which
+uses uniform noise, a small neural network estimates the noise level no better than counting alarms.
+A learned pre-decode ``hard-shot spotter'' also gave no net gain. We report both negative results and point to in-flight
+escalation decisions as the next place where machine learning could add measurable value.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+%=====================================================================
+\input{sections_gpt}
+%=====================================================================
+\input{sections_gemini_approaches}
+%=====================================================================
+\section{Our decoder: the agreement gate}\label{sec:gate}
+
+Figure~\ref{fig:flow} shows the final pipeline. It decodes each basis (X or Z) of each shot separately, as the kit does.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=7mm and 9mm, font=\small,
+  box/.style={draw, rounded corners=3pt, align=center, minimum height=9mm, inner sep=4pt, fill=#1},
+  box/.default=white,
+  dec/.style={draw, diamond, aspect=2.2, align=center, inner sep=1pt, fill=blue!6},
+  arr/.style={-{Stealth[length=2mm]}, thick}]
+  \node[box=gray!10] (in) {syndrome\\(936 detectors)};
+  \node[box=yellow!15, right=of in] (est) {noise detector\\$\hat p$ from alarm count\\(last 10 pairs)};
+  \node[box=gray!10, right=of est] (tab) {settings table\\$\hat p \mapsto (K, \text{referee})$};
+  \node[box=green!12, below=of in] (s0) {fast Relay-BP, seed 0\\stop at 1 solution,\\at most $80+60K$ iters};
+  \node[dec, right=of s0] (q1) {solved in\\first 80 iters?};
+  \node[box=green!25, right=of q1] (acc1) {\textbf{accept}\\(96.5\% at $p{=}0.003$)};
+  \node[dec, below=of q1] (q0) {any\\solution?};
+  \node[box=green!12, below=of q0] (s1) {fast Relay-BP, seed 1};
+  \node[dec, right=of s1] (q2) {same 12 logical\\bits as seed 0?};
+  \node[box=green!25, right=of q2] (acc2) {\textbf{accept}};
+  \node[box=orange!20, left=of s1] (ref) {\textbf{referee}\\full Relay-BP\\(5 solutions, 300 legs)};
+  \draw[arr] (in) -- (est); \draw[arr] (est) -- (tab);
+  \draw[arr] (in) -- (s0); \draw[arr] (s0) -- (q1);
+  \draw[arr] (q1) -- node[above]{yes} (acc1);
+  \draw[arr] (q1) -- node[right]{no} (q0);
+  \draw[arr] (q0) -- node[right]{yes} (s1);
+  \draw[arr] (q0) -| node[above, pos=0.25]{no} (ref);
+  \draw[arr] (s1) -- (q2);
+  \draw[arr] (q2) -- node[above]{yes} (acc2);
+  \draw[arr] (q2.south) -- ++(0,-5mm) -| node[below, pos=0.25]{no} (ref.south);
+\end{tikzpicture}
+\caption{The decoder. The top row estimates the noise level and looks up the fast run's restart cap $K$ and which referee to use. Green boxes are cheap, the orange box is expensive, and the yellow box is the (optional) noise detector.
+Seed 1 runs only when seed 0 needs more than its first leg (3\% of decodes at $p=0.003$). The referee runs on 0.6\% of decodes at $p=0.003$
+and on about 21\% at $p=0.005$ (with $K=10$).}
+\label{fig:flow}
+\end{figure}
+
+\paragraph{Why agreement works.} Relay-BP's later legs are randomised by their seed. A fast run that stops at its first
+solution can be wrong. Two runs that share the deterministic first leg but use differently seeded later legs and still land on the \emph{same} logical class are
+more likely to be right, and disagreement is a cheap, label-free warning sign. The gate rule itself has no trained parameters; its two settings ($K$ and the referee) were chosen on discovery data and
+confirmed on separate seeds. The ``lean'' shortcuts follow from Relay-BP's structure:
+\begin{itemize}
+  \item \textbf{First-leg accept.} The first 80 iterations are deterministic, so seed 1 would reproduce seed 0 exactly.
+        We verified 0 mismatches in about 34,000 shots, so the second run is skipped.
+  \item \textbf{No solution $\Rightarrow$ referee.} If seed 0 finds nothing within its cap, a second fast run rarely
+        helps, so the shot is escalated immediately.
+\end{itemize}
+
+\paragraph{Settings.} $K$ caps the fast run's restarts: it may use at most $80 + 60K$ iterations. The referee is
+R5 (the kit's Relay-BP, which collects 5 solutions), R2 (2 solutions) or R1 (1 solution, 300 legs). The current table is
+$K=10$ with R5 for $p \le 0.005$, $K=5$ with R2 at $p\approx0.0055$, and $K=5$ with R1 at $p\approx0.006$.
+Section~\ref{sec:adaptive} explains how we chose it.
+
+\paragraph{Implementation.} \texttt{experiments/gate.py} wraps the kit's \texttt{relay\_decoder} and exposes the same
+\texttt{decode(syndrome)} interface. It is about 50 lines of Python, with no changes to the kit.
+
+%=====================================================================
+\section{How we tested}\label{sec:method}
+
+Failures are rare (tens per 10,000 shots at $p=0.003$), so small runs mislead easily. Three of our own early
+``findings'' disappeared on fresh data. We adopted the following rules and kept to them:
+\begin{enumerate}
+  \item \textbf{Same shots for every decoder.} Every decoder sees exactly the same sampled syndromes, and the decoder order
+        is randomised per shot, so neither one benefits from a warm cache.
+  \item \textbf{Pre-registration.} Before every confirmation run we wrote down the settings, sample sizes, seeds and pass/fail rules in
+        \texttt{discussion/05}, \texttt{09}, \texttt{12}, \texttt{14} and \texttt{15}. Discovery and confirmation use
+        disjoint seeds.
+  \item \textbf{Accuracy verdict.} Pairs where exactly one decoder fails are ``discordant''. A one-sided 99.2\%
+        Clopper--Pearson bound on the gate's share of discordant pairs gives an upper bound on the failure ratio
+        gate/Relay-BP. \textbf{PASS} if the bound is $<1.2$, \textbf{FAIL} if the gate has more than 1.2$\times$ the failures,
+        \textbf{INCONCLUSIVE} otherwise. The FAIL rule uses the observed counts, so with very few discordant pairs it is a weak signal. The 99.2\% level is a Bonferroni correction over six noise levels.
+  \item \textbf{Latency verdict.} Paired bootstrap (2,000 resamples) 95\% upper bounds of the mean, p90 and p99 time
+        ratios. \textbf{PASS} only if all three are below 1.
+  \item \textbf{Machine.} An Apple-silicon Mac with 8 worker processes. Ratios are the claim. Absolute milliseconds are
+        machine-specific, and 8 workers overstate speed-ups slightly (0.70$\times$ vs 0.79$\times$ single-worker at $p=0.004$).
+\end{enumerate}
+
+%=====================================================================
+\section{Results}\label{sec:results}
+
+\subsection{Headline: gate vs BP-OSD vs Relay-BP}
+
+All numbers below come from fresh shots (seeds 5030--5050, and 6030 for the large run) decoded by all decoders. The gate uses
+alarm-count routing and the revised settings table.
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{lrrrrrrr}
+\toprule
+ & & \multicolumn{3}{c}{failed pairs} & \multicolumn{3}{c}{mean time per pair (ms)}\\
+\cmidrule(lr){3-5}\cmidrule(lr){6-8}
+$p$ & pairs & BP-OSD & Relay-BP & gate & BP-OSD & Relay-BP & gate\\
+\midrule
+0.003 & 10{,}000 & 55 & 5 & 7 & 94 & 57 & 22\\
+0.003 & 100{,}000 & --- & 74 & 86 & --- & 77 & 30\\
+0.004 & 6{,}000 & 336 & 55 & 53 & 282 & 262 & 191\\
+0.005 & 3{,}000 & 726 & 262 & 262 & 578 & 1335 & 1164\\
+\bottomrule
+\end{tabular}
+\caption{Failed X/Z pairs and mean decoding time (one X plus one Z shot). In the 100k run the gate was compared with Relay-BP only.}
+\label{tab:headline}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.56\textwidth]{ler_vs_p.pdf}
+\caption{Logical error rate per cycle with 95\% intervals. The gate (green) lies on top of Relay-BP (blue) and is
+3--8$\times$ below BP-OSD (orange). At $p=0.003$ the Relay-BP and gate points use the 100,000-pair run. Our Relay-BP value there
+($6.2\times10^{-5}$) matches the authors' published $6.0\times10^{-5}$.}
+\label{fig:ler}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{latency_vs_p.pdf}
+\caption{Decoding time. Left: the gate has the lowest mean time at $p=0.003$ and $0.004$, but at $0.005$ BP-OSD's fixed-cost
+algorithm is fastest on average. Right: the slowest 1\% of shots. Relay-BP and the gate share a long tail
+(seconds) that BP-OSD does not have.}
+\label{fig:latency}
+\end{figure}
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{llllll}
+\toprule
+$p$ & fails (gate/RBP) & accuracy (bound) & mean & p99 & latency\\
+\midrule
+0.003 (100k) & 86 vs 74 & INCONCL.\ (1.46) & 0.39$\times$ & 0.73$\times$ & \textbf{PASS}\\
+0.004 & 53 vs 55 & INCONCL.\ (1.29) & 0.73$\times$ & 1.03$\times$ & FAIL (p99)\\
+0.005 & 262 vs 262 & \textbf{PASS} (1.11) & 0.87$\times$ & 0.97$\times$ & FAIL (p90 1.01$\times$)\\
+\bottomrule
+\end{tabular}
+\caption{Pre-registered verdicts for the gate against Relay-BP (RBP). Time columns are gate/Relay-BP ratios. The 10k-pair run at $p=0.003$ gave 7 vs 5
+(3 vs 1 discordant), which counts as FAIL under the observed-count rule, although 4 discordant pairs carry little information. The 100k run supersedes it.}
+\label{tab:verdicts}
+\end{table}
+
+\paragraph{Reading the results.}
+\begin{itemize}
+  \item \textbf{Against BP-OSD} the gate is far more accurate at every noise level. It is faster on average at $p\le0.004$
+        (0.23$\times$ and 0.68$\times$) and slower at $p=0.005$ (2.0$\times$). Its p99 is 5--7$\times$ worse at $p\ge0.004$. That tail
+        comes from Relay-BP itself, not from the gate.
+  \item \textbf{Against Relay-BP} the gate shows no significant difference in logical error rate and is faster on average
+        everywhere: 2.6$\times$ at $p=0.003$, 1.4$\times$ at 0.004 and 1.15$\times$ at 0.005. Its tail is better at $p=0.003$ and roughly equal at $0.004$--$0.005$. At $p=0.003$ the best estimate is about $+16\%$ failures (86 vs 74), but the interval also includes no
+        difference.
+\end{itemize}
+
+\subsection{Where the time goes}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{gate_paths.pdf}
+\caption{Path taken by each basis decode in the stage-2 confirmation runs ($K=50$ at $p=0.004$--$0.005$, $K=5$ elsewhere). At low noise almost every shot is solved in
+the deterministic first 80 iterations and accepted immediately, which is why the gate is fast. As noise rises, more shots
+reach the referee and the saving shrinks.}
+\label{fig:paths}
+\end{figure}
+
+\subsection{Choosing settings by noise level}\label{sec:adaptive}
+
+We tried 12 settings ($K\in\{5,10,20,50\}\times$ referee $\in\{$R5, R2, R1$\}$) at six noise levels on 24,500
+discovery pairs. Capped runs were derived from the uncapped ones. Figure~\ref{fig:discovery} shows the trade-off.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{discovery.pdf}
+\caption{Stage-1 discovery: failures and mean time relative to Relay-BP for each setting. The dashed line is the 1.05
+accuracy limit used for selection, and the circle is the setting chosen. Cheap referees (orange, yellow) cost 15--39\% extra
+failures at $p=0.004$--$0.005$ but almost nothing at $p\ge0.0055$, where escalated shots usually fail whatever
+the referee does.}
+\label{fig:discovery}
+\end{figure}
+
+The stage-2 confirmation on fresh seeds taught three lessons:
+\begin{itemize}
+  \item \textbf{R2 at $p=0.003$ was a fluke.} Discovery picked it on 10 vs 12 failures. On fresh shots it gave 9 vs 2, and 6 of the 7 extra failures came
+        from the R2 referee.
+  \item \textbf{Large $K$ hurts the tail.} With $K=50$ the slowest 1\% were 14--16\% slower than Relay-BP, because the fast run
+        burns up to 3,080 iterations before escalating. Lowering $K$ to 10 cut this to about 3\% (Table~\ref{tab:verdicts}).
+  \item \textbf{$p=0.003$ is underpowered at 10k pairs.} Relay-BP alone gave 2, 14 and 7 failures in three such runs.
+\end{itemize}
+
+\subsection{The noise detector}
+
+The team's design is: \emph{``when there is an alarm, the ML model detects the noise level and applies its effect''}.
+We tested whether the noise level can be read from the alarms, and whether ML beats a simple count.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{noise_detector.pdf}
+\caption{Left: the mean number of alarms rises smoothly with $p$, so the count is a natural estimator. Right: estimates
+from the last 10 pairs on fresh shots. The three challenge noise levels separate cleanly. Only the 0.0053 boundary, where the
+table switches to a cheap referee, matters for routing.}
+\label{fig:noise}
+\end{figure}
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{lrrrr}
+\toprule
+estimator & 1 shot & last 10 & last 100 & cost per estimate\\
+\midrule
+alarm count + calibration curve & 6--9\% & 2--3\% & $\sim$0.8\% & $\sim$1\,$\mu$s\\
+MLP (32, 16), alarm counts per cycle & 6--8\% & 2--3\% & 0.8--2.9\% & $\sim$70\,$\mu$s\\
+ridge regression & 7--8\% & 2--4\% & 1--4\% & $\sim$60\,$\mu$s\\
+\bottomrule
+\end{tabular}
+\caption{Mean relative error of the estimated $p$ on fresh shots ($p=0.003$--$0.006$). Training used 61,500 pairs at 41 noise levels.}
+\end{table}
+
+\begin{itemize}
+  \item \textbf{Routing works.} In a stream whose noise changes every 300 pairs, count-based routing gave 203 failed pairs vs 207 for
+        perfect knowledge of $p$, at the same time (0.67$\times$ Relay-BP).
+  \item \textbf{ML adds nothing here.} On the 6,333-pair subset the MLP chose the same settings as the count on 100\%, 100\% and 97.3\% of pairs, with identical
+        results. Under the kit's uniform noise model the total alarm count appears to carry nearly all the information about $p$.
+  \item \textbf{Bias direction matters.} With the current table, over-estimating $p$ sends shots to cheap referees, and a
+        $+10\%$ bias cost 11--18\% extra failures. The safe error is to under-estimate.
+\end{itemize}
+
+\subsection{Where the gate loses accuracy}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\textwidth]{p0003_discordance.pdf}
+\caption{Discordant basis decodes in the 100,000-pair run at $p=0.003$, by gate path. The clearest excess is on the
+``seeds agreed'' path (9 vs 4): both fast runs agree on a wrong logical class that the full Relay-BP, which compares 5 solutions, avoids.
+These shots are the natural target for a learned per-shot check.}
+\label{fig:disc}
+\end{figure}
+
+\subsection{A learned hard-shot spotter (tested, negative)}\label{sec:hardshot}
+Following Figure~\ref{fig:disc}, we tested the ML component we had recommended: a classifier that looks at a syndrome
+\emph{before} decoding and sends predicted-hard shots straight to the referee, skipping fast runs that would be wasted.
+A wrong prediction can only cost time. The design was agreed with GPT and Gemini (\texttt{discussion/19}).
+\begin{itemize}
+  \item \textbf{Ceiling first.} Even a perfect spotter improves the mean by only 3--7 points. It moves the p99 ratio at $p=0.004$ from
+        1.03 to 0.99 and the p90 ratio at $p=0.005$ from 1.01 to 0.97.
+  \item \textbf{Models.} Logistic regression and gradient-boosted trees on microsecond syndrome features (alarm counts per cycle,
+        other-basis alarms, adjacent alarm pairs, isolated alarms, repeats on the same check, and the noise estimate). The simple rule to beat is
+        ``skip if the alarm count is high''. We trained on 50\% of the discovery shots, chose thresholds on 20\% and evaluated on the last 30\%,
+        charging the measured inference cost (2\,$\mu$s for the rule, 112\,$\mu$s for logistic regression) to every decode.
+  \item \textbf{Result.} The models separate shots the gate will escalate only moderately (AUC 0.69--0.74, about the same as the
+        alarm count). Skipping an easy shot costs a full referee decode, so every policy, the simple rule included, chose to skip
+        almost nothing, and held-out results equalled the plain gate. As agreed in advance, we stopped without a fresh-seed confirmation.
+\end{itemize}
+\emph{Lesson:} pre-decode syndrome summaries moderately predict escalation, but not well enough to pay for misrouted shots.
+The more promising place for ML is in-flight: deciding after the first 80-iteration leg, from the decoder's own state,
+whether to escalate early.
+
+%=====================================================================
+\section{Resources}\label{sec:resources}
+
+\begin{itemize}
+  \item \textbf{Decoder runs per basis decode.} At $p=0.003$: 1 fast run on 96.5\% of decodes, 2 on 2.9\%, and the
+        referee on 0.6\%. At $p=0.005$: solved in the first leg on 64\%, and the referee on about 21\% with $K=10$ (20.6\% in discovery; Figure~\ref{fig:paths} shows the $K=50$ runs).
+  \item \textbf{Iterations.} A first-leg accept uses at most 80 BP iterations. The fast run is capped at $80+60K = 680$ iterations ($K=10$).
+        The referee is the unchanged kit Relay-BP.
+  \item \textbf{Memory.} Three Relay-BP decoder objects per basis (two fast seeds and the referee). The noise detector is a 24-number feature vector
+        and a lookup table, or a 2-layer MLP with about 2,100 weights.
+  \item \textbf{Compute.} One CPU core per decode, and no GPU. All results were produced on a single laptop: roughly 4--5 hours of
+        decoding for the experiments in this report.
+\end{itemize}
+
+%=====================================================================
+\input{sections_gemini_lessons}
+%=====================================================================
+\section{Where we are now}\label{sec:status}
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{p{0.33\textwidth}p{0.6\textwidth}}
+\toprule
+Deliverable & Status\\
+\midrule
+LER sweep at $p=0.003, 0.004, 0.005$ & Done; Figure~\ref{fig:ler}, Table~\ref{tab:headline}\\
+Latency vs BP-OSD and Relay-BP & Done; Figure~\ref{fig:latency}, Table~\ref{tab:verdicts}\\
+Resources & Section~\ref{sec:resources}\\
+GitHub repository & \href{https://github.com/ephan04/heisenbugsqc}{ephan04/heisenbugsqc}, branch \texttt{noise-adaptive-gate}\\
+Plot and presentation & Figures in \texttt{report/figures}; slides to be made from this report\\
+ML component & Noise detector and hard-shot spotter built and tested; neither beat a simple alarm-count rule (honest negative results)\\
+Loss / heralding bonus & Not attempted (the kit does not simulate loss)\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Claim we can defend.} \emph{On the same simulated shots, the agreement-gated decoder makes 3--8$\times$ fewer
+logical errors than BP-OSD. Its logical error rate shows no significant difference from Relay-BP's (non-inferiority shown at $p=0.005$), and it needs
+13--61\% less mean decoding time. Its tail latency is better at $p=0.003$ and about equal at $p=0.004$--$0.005$.}
+
+\paragraph{Claims we cannot make.} We cannot claim the gate is more accurate than Relay-BP, that it is non-inferior at $p=0.003$--$0.004$, that it improves tail latency at $p\ge0.004$,
+or that either ML component (noise detector, hard-shot spotter) outperforms counting alarms.
+
+%=====================================================================
+\section{Next steps}\label{sec:next}
+\begin{enumerate}
+  \item \textbf{In-flight ML escalation.} The pre-decode spotter (Section~\ref{sec:hardshot}) did not pay off. The next ML candidate reads
+        the decoder's state after the first 80-iteration leg (for example, unsatisfied checks and how they evolve) and decides whether to escalate
+        early. This needs instrumenting Relay-BP. Checking agreed-but-wrong shots (Figure~\ref{fig:disc}) needs far more examples than we have.
+  \item \textbf{Parallel stages.} Run seed 0, seed 1 and the referee concurrently on separate cores, so that latency becomes the
+        maximum of the stages instead of their sum. This is the most direct fix for the tail.
+  \item \textbf{Harder noise.} Use non-uniform or drifting noise (for example measurement errors $\ne$ gate errors), where a learned
+        detector could beat a single count.
+  \item \textbf{Loss and heralding.} Add \texttt{HERALDED\_ERASE} to the circuits and feed erasure locations to the priors.
+  \item \textbf{Generality.} Repeat on \texttt{bb72}/\texttt{bb90}/\texttt{bb108} with \texttt{make\_circuit.py}.
+\end{enumerate}
+
+%=====================================================================
+\appendix
+\section{Reproducing the results}
+\begin{small}
+\begin{verbatim}
+uv venv --python 3.12 .venv
+uv pip install -r challenge-1-ml-decoder-kit/requirements.txt matplotlib
+# headline comparison (BP-OSD, Relay-BP, gate with alarm-count and MLP routing)
+python experiments/bposd_compare.py --p 0.004 --shots 6000 --seed 5040 \
+       --out data/compare_p0.004.npz
+python experiments/bposd_compare_report.py data/compare_p*.npz
+# 100k pairs at p = 0.003
+python experiments/adaptive_confirm.py --p 0.003 --shots 100000 --seed 6030 \
+       --table results/revised_p0.003.json --out data/large_p0.003.npz
+# settings discovery and confirmation, noise detector, figures
+python experiments/adaptive_collect.py ...
+python experiments/adaptive_select.py data/adapt_p*.npz
+python experiments/noise_ml.py
+python experiments/report_figures.py
+\end{verbatim}
+\end{small}
+All raw data are in \texttt{data/} and every summary is in \texttt{results/}. The full three-AI discussion, including
+each pre-registration, is in \texttt{discussion/}, and every prompt is listed in \texttt{PROMPTS.md}.
+
+\section{How this report was written}
+The team lead directed the work through Claude Code. Claude ran the experiments, wrote the code and integrated this report.
+GPT (via \texttt{codex}) drafted Sections~1--2 and Gemini (via \texttt{agy}) drafted Section~3 and the lessons section, both from a
+shared fact sheet (\texttt{discussion/17\_report\_brief.md}). Both then fact-checked the assembled draft. Every number traces
+to a file in \texttt{results/}.
+
+\end{document}

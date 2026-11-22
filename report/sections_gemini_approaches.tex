@@ -1,0 +1,79 @@
+\section{Approaches We Considered}
+
+This section follows the project chronologically: what we tried, what we measured, and why each idea was kept or dropped.
+
+Our investigative trajectory progressed chronologically from initial architectural deliberations through empirical dead ends, leading to the development of a zero-parameter consensus gate, its noise-adaptive generalization, and an online noise-routing subsystem.
+
+\subsection{Architectural Conception and Multi-AI Deliberation}
+
+The project originated from the hierarchical decoding paradigm formalized in recent literature (e.g., arXiv:2611.16271), wherein a rapid, low-complexity filter resolves typical, low-weight syndrome configurations, delegating only recalcitrant syndromes to a heavy, computationally intensive backend. 
+
+To explore this design space, our team established a structured tri-agent collaborative workflow comprising Claude (operating via Claude Code), GPT (via Codex), and Gemini (via agy). The initial debate focused on the granularity of delegation:
+\begin{itemize}
+    \item \textit{Partial-Shot Commitment vs.\ Whole-Shot Escalation}: One proposed approach was to run a lightweight Belief Propagation (BP) decoder, identify high-marginal ``confident'' data bits, freeze their values, and pass the reduced Tanner graph to an Ordered Statistics Decoder (BP-OSD) or Relay-BP. All three agents reached a consensus to reject this mechanism. In bivariate bicycle codes, check operators possess weight 6 and wrap globally around the $12 \times 6$ torus. Freezing bits based on local marginals risks locking the system into an incorrect topological homology (a spurious logical coset), guaranteeing a logical failure that no downstream decoder can overturn. Consequently, the team restricted all designs to whole-shot accept/escalate architectures.
+    \item \textit{Evaluation Metrics}: The panel agreed that intermediary metrics, such as router classification accuracy, were misleading. System performance had to be evaluated strictly on end-to-end paired logical error rate per cycle, defined as $\text{LER} = 1 - (1 - P_{\text{pair\_fail}})^{1/12}$ across coupled $X$ and $Z$ memory shots, alongside mean and 99th-percentile (p99) execution latency.
+    \item \textit{Scope Delimitation}: Although the challenge brief highlighted qubit loss and erasure heralding as a bonus topic, the provided simulator kit did not model loss channels. The panel deferred erasure decoding to prioritize the circuit-level depolarizing sweep.
+\end{itemize}
+
+\subsection{Early Empirical Dead Ends at $p = 0.004$}
+
+Early calibration experiments demonstrated that a pure 80-iteration min-sum BP stage (BP-80) converged cleanly on $87\%$, $64\%$, and $30\%$ of shots at $p = 0.003$, $0.004$, and $0.005$, respectively, executing in only 5--9~ms. Crucially, across initial 500-shot samples, a converged BP-80 decode was never incorrect (0/437, 0/318, and 0/148 failures). However, constructing a practical filter around BP proved challenging:
+
+\begin{itemize}
+    \item \textit{Gemini's Low-Weight Acceptance Heuristic}: Gemini initially hypothesized that BP solutions should be accepted if and only if the total predicted correction weight satisfied $|e| \le 4$. Empirical validation at $p = 0.004$ immediately falsified this hypothesis: the median weight of true, syndrome-consistent corrections across 12 cycles of noise is 45. A threshold of 4 was far below the weight of typical correct corrections.
+    \item \textit{Direct BP Pre-Gating}: Placing BP-80 directly in front of Relay-BP yielded marginal latency improvements, shifting mean runtime from 266~ms to 254~ms. Because BP-80 fails on approximately $36\%$ of shots at $p = 0.004$, the overall system latency remained dominated by the intractable tail of unresolved shots.
+    \item \textit{BP-LSD as an Intermediate Tier}: Localized Statistics Decoding (BP-LSD) was evaluated as a mid-tier alternative to full OSD. At $p = 0.004$, BP-LSD produced a cycle LER of $9.5 \times 10^{-3}$, substantially worse than standard BP-OSD ($4.4 \times 10^{-3}$), and was dropped.
+    \item \textit{Single-Run Confidence and Machine-Learned Gating}: Attempts to gate a single run of fast Relay-BP ($\text{stop\_nconv}=1$) using internal solver diagnostics (iterations used, correction weight, log-likelihood ratio margins) via logistic regression and Gradient Boosted Decision Trees (GBDT) proved counterproductive. The best heuristic filter reduced runtime by only $14\%$ while increasing failure counts from 12 to 13; the GBDT filter produced 5 additional logical failures over baseline Relay-BP.
+    \item \textit{Oracle Headroom Assessment}: To ascertain whether tiered gating was fundamentally viable, we simulated an oracle gate possessing perfect prescience of whether a fast decode matched the true logical class. The oracle achieved 8 paired failures at 128~ms mean latency, compared to Relay-BP's 12 failures at 361~ms. This confirmed substantial theoretical headroom, provided a sufficiently reliable gating criterion could be devised.
+\end{itemize}
+
+\subsection{The Agreement Gate and Lean Execution}
+
+The breakthrough emerged from exploiting the stochastic exploration dynamics of Relay-BP itself. Standard Relay-BP (Mueller et al., relay\_bp 0.2.2) executes an initial 80-iteration BP leg, followed by successive 60-iteration legs perturbed by random memory coefficients $\gamma \in (-0.226, 0.622)$. It accumulates solutions until finding $\text{stop\_nconv} = 5$ distinct valid candidates (capped at 300 legs) and returns the lowest-energy configuration.
+
+Rather than relying on learned classifiers, we introduced the \textit{Agreement Gate}:
+\begin{enumerate}
+    \item Execute a truncated Relay-BP instance ($\text{stop\_nconv} = 1$, maximum 50 legs) initialized with seed~0.
+    \item Execute a second truncated Relay-BP instance ($\text{stop\_nconv} = 1$, maximum 50 legs) initialized with seed~1.
+    \item If both instances converge to identical 12-bit logical predictions, the shot is accepted immediately.
+    \item If either instance fails to find a valid syndrome solution, or if their 12-bit logical predictions disagree, the shot is escalated to the full ``referee'' decoder (standard kit Relay-BP with $\text{stop\_nconv} = 5$, 300 legs).
+\end{enumerate}
+
+Because the first 80 iterations of Relay-BP are completely deterministic (free of random memory perturbations), seeds~0 and 1 trace identical execution trajectories during this initial leg. This insight enabled the \textit{Lean Agreement Gate}:
+\begin{itemize}
+    \item If seed~0 converges within the initial 80 iterations, accept immediately. Seed~1 would behave identically; across approximately 34,000 empirical test shots, zero discrepancies were observed on this path.
+    \item If seed~0 finds no solution at all within its leg cap, escalate immediately to avoid redundant computation.
+    \item Otherwise (if seed~0 required perturbed legs to converge), run seed~1. If seed~1 agrees with seed~0, accept; otherwise, escalate to the referee.
+\end{itemize}
+
+\subsection{Pre-Registered Verification}
+
+Under a pre-registered protocol (Document~05) evaluating 17,000 fresh paired shots, the Agreement Gate matched the fidelity of full Relay-BP across the board (pooled failures: 317 for the gate vs.\ 327 for Relay-BP). At $p = 0.005$, the Agreement Gate demonstrated a statistically significant accuracy enhancement over baseline Relay-BP, recording 14 favorable discordant pairs against only 2 unfavorable pairs (McNemar test $p \approx 0.004$).
+
+In terms of latency, the original agreement gate achieved mean runtime ratios of $0.48\times$ at $p = 0.003$ and $0.70\times$ at $p = 0.004$ ($0.79\times$ in single-worker controlled tests). However, at $p = 0.005$, mean latency was $0.96\times$ (failing the pre-registered acceleration criterion), while p99 latency degraded by $13\text{--}30\%$ across $p \ge 0.004$. The Lean variant resolved the mean latency bottleneck, achieving runtime ratios of $0.36\times$, $0.63\times$, and $0.88\times$ across $p \in \{0.003, 0.004, 0.005\}$ ($0.72\times$ single-worker at $0.004$), preserving full logical fidelity.
+
+\subsection{Noise-Adaptive Parameter Optimization}
+
+To address latency degradation at higher physical error rates, we investigated noise-adaptive configurations. The operating envelope was parameterized by the fast restart cap $K$ (limiting fast legs to $80 + 60K$ iterations) and the referee tier: kit Relay-BP ($\text{R5}$, $\text{stop\_nconv} = 5$), $\text{R2}$ ($\text{stop\_nconv} = 2$), or $\text{R1}$ ($\text{stop\_nconv} = 1$, 300 legs).
+
+\textit{Discovery Stage}: Twelve configurations were evaluated across six noise rates ($p \in [0.003, 0.006]$) over 24,500 paired shots. Selecting the fastest configuration whose failure ratio remained within $1.05\times$ of baseline Relay-BP yielded the initial discovery schedule: $K5/\text{R2}$ at $p = 0.003$; $K50/\text{R5}$ at $p \in [0.004, 0.005]$; $K5/\text{R2}$ at $p = 0.0055$; and $K5/\text{R1}$ at $p = 0.006$. Discovery data revealed that while lightweight referees ($\text{R2}$, $\text{R1}$) degraded accuracy by $15\text{--}39\%$ at $p \in [0.004, 0.005]$, they introduced no penalty at $p \ge 0.0055$, where the escalated shots failed whichever of the tested referees handled them.
+
+\textit{Confirmation Stage and Low-Noise Ablation}: Confirmation runs on fresh seeds exposed critical edge cases:
+\begin{itemize}
+    \item At $p = 0.003$, the $K5/\text{R2}$ configuration failed confirmation (9 failures vs.\ 2 for Relay-BP), isolated directly to the weaker $\text{R2}$ referee.
+    \item Subsequent ablations at $p = 0.003$ using the robust $\text{R5}$ referee demonstrated that $K5$ yielded 15 vs.\ 14 failures, while $K50$ produced 10 vs.\ 7. These fluctuations demonstrated that 10,000 shots at $p = 0.003$ are statistically underpowered; Relay-BP itself exhibited 2, 14, and 7 failures across three independent 10,000-shot runs.
+    \item At $p = 0.0045$ and $0.005$ accuracy passed and at $p = 0.004$ it was inconclusive (69 vs 61), while p99 latency was about $15\%$ worse than Relay-BP at all three, failing the latency criterion.
+\end{itemize}
+
+In response, we established a \textit{Revised Operational Table}: retain the full $\text{R5}$ referee with $K = 10$ across all standard operating regimes ($p \le 0.005$), deploying $K5/\text{R2}$ only at $p = 0.0055$ and $K5/\text{R1}$ at $p = 0.006$.
+
+\subsection{Syndrome-Level Noise Estimation and Online Routing}
+
+To deploy the noise-adaptive table without external parameter injection, we implemented an automated noise-estimation front-end to infer $p$ directly from syndrome alarms:
+\begin{itemize}
+    \item \textit{Detector Characteristics}: The mean count of $X$-basis detector alarms scales monotonically with circuit noise: 34, 66, 95, 122, 147, 170, and 191 alarms at $p = 0.001$ to $0.007$ in steps of $0.001$, respectively.
+    \item \textit{Model Training and Evaluation}: Across a dataset of 61,500 paired shots spanning 41 noise levels in $[0.002, 0.007]$, models were trained on 24 spatiotemporal features per basis (alarm counts partitioned by cycle and check type). Over a sliding window of the last 10 pairs, a simple scalar alarm count achieved a relative estimation error of $2\text{--}3\%$, matching a multi-layer perceptron (MLP with layers 32 and 16, $2\text{--}3\%$ error) and ridge regression ($2\text{--}4\%$ error). On single shots, error was $6\text{--}9\%$, dropping to $\sim 0.8\%$ over 100 shots.
+    \item \textit{Computational Efficiency and Sufficiency}: Total detector counting requires $1\ \mu\text{s}$, compared to $\sim 70\ \mu\text{s}$ per single inference for the MLP (under $1\ \mu\text{s}$ batched). Under spatially uniform depolarizing noise, the total alarm count functions as an empirical sufficient statistic; the tested ML estimators gave no measurable improvement.
+    \item \textit{Dynamic Drift Streaming}: In a synthetic drift stream where $p$ shifted every 300 pairs, an alarm-counting window of $W = 10$ pairs delivered 203 total logical failures, matching both the static oracle (207 failures) and pure Relay-BP (207 failures), while reducing runtime to $0.67\times$.
+    \item \textit{Asymmetric Risk Profile}: Analysis identified an asymmetric penalty landscape: under-estimating noise retains conservative, safe referee settings ($\text{R5}$). Conversely, a $+10\%$ upward bias at $p \in [0.0045, 0.005]$ triggered premature transitions to aggressive settings, inducing an $11\text{--}18\%$ surge in logical failures.
+\end{itemize}
