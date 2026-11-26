@@ -1,6 +1,6 @@
 # Agreement Gate: faster decoding for the Gross code
 
-**Team Heisenbugs · MidQWest Quantum Hackathon 2026 · Infleqtion Challenge 1 (ML-assisted QEC decoding)**
+[**Team Heisenbugs · MidQWest Quantum Hackathon 2026 · Infleqtion Challenge 1 (ML-assisted QEC decoding)**](report/slide.pdf)
 
 We built a decoder for the [[144,12,12]] Gross code that is **up to 2.6× faster on average than Relay-BP**, the most
 accurate decoder in the challenge kit, while matching its accuracy within our statistical precision. It makes **3–8× fewer errors than BP-OSD**.
